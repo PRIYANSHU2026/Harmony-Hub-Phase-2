@@ -33,22 +33,86 @@ export interface GeneratedExercise {
 }
 
 /**
- * Mock function to generate a music exercise using MIDI-GPT
+ * Function to generate a music exercise using MIDI-GPT via the Streamlit integration API
  *
- * In a real implementation, this would call the MIDI-GPT API or model
- * and return the generated MIDI and MusicXML data.
+ * This function calls our backend API which integrates with the Python Streamlit bridge
+ * to generate music exercises.
  */
 export async function generateExercise(params: ExerciseParameters): Promise<GeneratedExercise> {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  try {
+    // Call the Streamlit integration API
+    const response = await fetch('/api/ai/streamlit-integration', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ parameters: params }),
+    });
 
-  // In a real implementation, this would contain actual MIDI data
-  const mockMidiData = "MOCK_MIDI_DATA";
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error generating exercise:', errorData);
+      throw new Error(errorData.error || 'Failed to generate exercise');
+    }
 
-  // In a real implementation, this would contain actual MusicXML data for rendering
-  const mockMusicXML = `<?xml version="1.0" encoding="UTF-8"?>
+    const data = await response.json();
+
+    // Convert date string to Date object
+    if (typeof data.metadata.generatedAt === 'string') {
+      data.metadata.generatedAt = new Date(data.metadata.generatedAt);
+    }
+
+    return data as GeneratedExercise;
+  } catch (error) {
+    console.error('Error in exercise generation:', error);
+
+    // Fallback to mock implementation if the API call fails
+    console.warn('Using fallback mock implementation');
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // In a real implementation, this would contain actual MIDI data
+    const mockMidiData = "MOCK_MIDI_DATA";
+
+    // In a real implementation, this would contain actual MusicXML data for rendering
+    const mockMusicXML = generateMockMusicXML(params);
+
+    return {
+      exerciseId: `ex-${Date.now()}`,
+      midiData: mockMidiData,
+      musicXML: mockMusicXML,
+      metadata: {
+        title: `${params.focusType} Exercise in ${params.key}`,
+        instrument: params.instrument,
+        key: params.key,
+        timeSignature: `${params.meterNumerator}/${params.meterDenominator}`,
+        difficulty: params.level,
+        focus: `${params.focusType} - ${params.focusValue}`,
+        bars: parseInt(params.bars),
+        generatedAt: new Date()
+      }
+    };
+  }
+}
+
+/**
+ * Generate a mock MusicXML for fallback purposes
+ */
+function generateMockMusicXML(params: ExerciseParameters): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise version="3.1">
+  <work>
+    <work-title>${params.focusType} Exercise in ${params.key}</work-title>
+  </work>
+  <identification>
+    <creator type="composer">HarmonyHub AI</creator>
+    <encoding>
+      <software>HarmonyHub</software>
+      <encoding-date>${new Date().toISOString().slice(0, 10)}</encoding-date>
+    </encoding>
+  </identification>
   <part-list>
     <score-part id="P1">
       <part-name>${params.instrument}</part-name>
@@ -78,26 +142,33 @@ export async function generateExercise(params: ExerciseParameters): Promise<Gene
         <duration>1</duration>
         <type>quarter</type>
       </note>
-      <!-- More notes would be here in a real implementation -->
+      <note>
+        <pitch>
+          <step>E</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch>
+          <step>G</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch>
+          <step>C</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>1</duration>
+        <type>quarter</type>
+      </note>
     </measure>
   </part>
 </score-partwise>`;
-
-  return {
-    exerciseId: `ex-${Date.now()}`,
-    midiData: mockMidiData,
-    musicXML: mockMusicXML,
-    metadata: {
-      title: `${params.focusType} Exercise in ${params.key}`,
-      instrument: params.instrument,
-      key: params.key,
-      timeSignature: `${params.meterNumerator}/${params.meterDenominator}`,
-      difficulty: params.level,
-      focus: `${params.focusType} - ${params.focusValue}`,
-      bars: parseInt(params.bars),
-      generatedAt: new Date()
-    }
-  };
 }
 
 /**

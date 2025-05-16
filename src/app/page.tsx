@@ -18,6 +18,12 @@ export default function Home() {
               Generate Exercises
             </Link>
             <Link
+              href="/ai-tools"
+              className="rounded-md bg-green-600 px-6 py-3 text-lg font-medium text-white hover:bg-green-700"
+            >
+              AI Tools
+            </Link>
+            <Link
               href="/about"
               className="rounded-md border border-white bg-transparent px-6 py-3 text-lg font-medium text-white hover:bg-white/10"
             >

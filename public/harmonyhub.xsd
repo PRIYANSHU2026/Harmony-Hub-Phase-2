@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.harmonyhub.com/schema"
+           xmlns="http://www.harmonyhub.com/schema"
+           elementFormDefault="qualified">
+
+  <!-- Root element -->
+  <xs:element name="HarmonyHub">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Application" type="ApplicationType"/>
+        <xs:element name="UserProfile" type="UserProfileType" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="Exercises" type="ExercisesType"/>
+        <xs:element name="AIModels" type="AIModelsType"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Application information type -->
+  <xs:complexType name="ApplicationType">
+    <xs:sequence>
+      <xs:element name="Name" type="xs:string"/>
+      <xs:element name="Version" type="xs:string"/>
+      <xs:element name="Description" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- User profile type -->
+  <xs:complexType name="UserProfileType">
+    <xs:sequence>
+      <xs:element name="UserID" type="xs:string"/>
+      <xs:element name="Name" type="xs:string"/>
+      <xs:element name="Role" type="xs:string"/>
+      <xs:element name="Preferences" type="PreferencesType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- User preferences type -->
+  <xs:complexType name="PreferencesType">
+    <xs:sequence>
+      <xs:element name="DefaultInstrument" type="xs:string"/>
+      <xs:element name="DefaultDifficulty" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Exercises collection type -->
+  <xs:complexType name="ExercisesType">
+    <xs:sequence>
+      <xs:element name="Exercise" type="ExerciseType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Exercise type -->
+  <xs:complexType name="ExerciseType">
+    <xs:sequence>
+      <xs:element name="Metadata" type="MetadataType"/>
+      <xs:element name="MusicXML" type="xs:string"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- Exercise metadata type -->
+  <xs:complexType name="MetadataType">
+    <xs:sequence>
+      <xs:element name="Title" type="xs:string"/>
+      <xs:element name="Instrument" type="xs:string"/>
+      <xs:element name="Key" type="xs:string"/>
+      <xs:element name="TimeSignature" type="xs:string"/>
+      <xs:element name="Difficulty" type="xs:string"/>
+      <xs:element name="Focus" type="xs:string"/>
+      <xs:element name="Bars" type="xs:integer"/>
+      <xs:element name="GeneratedAt" type="xs:dateTime"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- AI models collection type -->
+  <xs:complexType name="AIModelsType">
+    <xs:sequence>
+      <xs:element name="Model" type="ModelType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- AI model type -->
+  <xs:complexType name="ModelType">
+    <xs:sequence>
+      <xs:element name="Name" type="xs:string"/>
+      <xs:element name="Provider" type="xs:string"/>
+      <xs:element name="Type" type="xs:string"/>
+      <xs:element name="Endpoint" type="xs:string"/>
+      <xs:element name="ApiKey" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>

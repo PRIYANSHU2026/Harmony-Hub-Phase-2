@@ -1,67 +1,119 @@
-# HarmonyHub
+# HarmonyHub - AI-Powered Music Education Platform
 
-AI-powered music education platform integrating MIDI-GPT for dynamic exercise generation
+HarmonyHub is an AI-powered personalized music education platform integrating MIDI-GPT for dynamic exercise generation. The system leverages various AI models, including Shuka-1 for text generation and Dia-1.6B for text-to-speech capabilities.
 
 ## Overview
 
-HarmonyHub is an educational platform designed to enhance music education by leveraging generative AI to create personalized music exercises. The platform integrates MIDI-GPT, a controllable multi-track music machine, to generate pedagogically sound exercises for various instruments and skill levels.
-
-While music educators strive to provide personalized learning paths, existing educational tools often lack the flexibility to adapt to diverse student needs. HarmonyHub bridges this gap by empowering teachers to design customized exercises and dynamically adjust lessons based on individual progress.
+HarmonyHub is designed to enhance music education by leveraging generative AI to create personalized music exercises. The platform integrates MIDI-GPT, a controllable multi-track music machine, to generate pedagogically sound exercises for various instruments and skill levels. In addition, it incorporates advanced text and speech AI models to provide a holistic, interactive learning experience.
 
 ## Features
 
-- **AI-Generated Exercises**: Generate tailored exercises for different instruments, skill levels, and music concepts
-- **Interactive Sheet Music**: View exercises as professional-quality sheet music with VexFlow
-- **Customizable Parameters**: Control key signatures, time signatures, difficulty levels, and pedagogical focus
-- **MIDI Playback**: Listen to generated exercises directly in the browser
-- **Exercise Management**: Save, organize, and share exercises with students
+- **AI-Generated Music Exercises**: Generate customized music exercises based on instrument, difficulty, key, and music theory concepts.
+- **Interactive Sheet Music**: View exercises as professionally rendered sheet music with proper MusicXML parsing.
+- **MIDI Export**: Download exercises as MIDI files for playback in any music software.
+- **XML Generation**: Export exercise data in standardized XML format with comprehensive schema.
+- **AI Text Generation**: Generate text content using the Shuka-1 model.
+- **Text-to-Speech**: Convert text to speech using the Dia-1.6B model.
+- **Streamlit Integration**: Bridge between Next.js frontend and Python-based AI generation.
 
-## Technical Implementation
+## Tech Stack
 
-HarmonyHub is implemented as:
+- **Frontend**: Next.js 15 with React 19
+- **Styling**: Tailwind CSS 4
+- **API**: tRPC for type-safe API communication
+- **AI Models**:
+  - Shuka-1 for text generation
+  - Dia-1.6B for text-to-speech
+  - MIDI-GPT for music generation (via Python bridge)
+- **Music Rendering**: VexFlow for sheet music visualization
+- **Python Integration**: Streamlit for music generation UI and bridge script
 
-1. **Web Application**: A Next.js-based web application with:
-   - React frontend with TailwindCSS for styling
-   - API routes for MIDI-GPT integration
-   - VexFlow for sheet music rendering
+## Architecture
 
-2. **Streamlit GUI**: A standalone Streamlit application that provides:
-   - Simple interface for exercise generation
-   - Visualization of generated sheet music
-   - MIDI playback and download capabilities
+The application follows a modular architecture:
 
-## MIDI-GPT Integration
+1. **Next.js Frontend**: Provides the user interface and handles client-side logic.
+2. **API Layer**: Manages communication between the frontend and backend services.
+3. **Python Bridge**: Connects the JavaScript frontend with Python-based AI models.
+4. **AI Models**: External services for text generation, speech synthesis, and music generation.
+5. **Data Storage**: XML and MIDI formats for storing and exchanging music data.
 
-The core of HarmonyHub is its integration with MIDI-GPT, a generative system developed by the Metacreation Lab, designed for computer-assisted music composition workflows. The system:
+## Integration Details
 
-- Takes natural language input (e.g., "Generate a 16-bar beginner trumpet exercise in C major focusing on thirds")
-- Generates appropriately structured MIDI data
-- Outputs structured JSON including MusicXML for rendering
+### MusicXML Parser
 
-## Installation
+The system includes a comprehensive MusicXML parser that renders sheet music using VexFlow. It can handle:
 
-### Web Application
+- Various time signatures
+- Key signatures with sharps and flats
+- Note durations and accidentals
+- Multi-measure scores
+
+### MIDI Export
+
+The MIDI export functionality converts MusicXML data to standard MIDI format, enabling:
+
+- Playback in any MIDI-compatible software
+- Note pitch, duration, and velocity information
+- Proper time signature and tempo encoding
+
+### Streamlit Integration
+
+The system integrates with a Python-based Streamlit application through a custom bridge script:
+
+1. Frontend sends exercise parameters to an API endpoint.
+2. API calls the Python bridge script with the parameters.
+3. Python script generates MusicXML and MIDI data.
+4. Results are returned to the frontend for display and download.
+
+### AI Model Integration
+
+The Shuka-1 and Dia-1.6B models are integrated via API endpoints:
+
+- `/api/ai/text-generation`: Generates text using Shuka-1.
+- `/api/ai/text-to-speech`: Converts text to speech using Dia-1.6B.
+
+## Setup and Development
+
+### Prerequisites
+
+- Node.js 18+ and Bun
+- Python 3.8+ (for Streamlit integration)
+- Recommended: Visual Studio Code with TypeScript and Python extensions
+
+### Installation
+
+1. Clone the repository
+   ```bash
+   git clone https://github.com/PRIYANSHU2026/Harmony-Hub-Phase-2.git
+   cd Harmony-Hub-Phase-2
+   ```
+
+2. Install JavaScript dependencies
+   ```bash
+   bun install
+   ```
+
+3. Install Python dependencies (for Streamlit integration)
+   ```bash
+   pip install streamlit music21 midiutil
+   ```
+
+4. Set up environment variables
+   ```bash
+   cp .env.example .env
+   ```
+
+5. Start the development server
+   ```bash
+   bun run dev
+   ```
+
+### Running Streamlit App (Optional)
+
+The Streamlit app can be run separately for standalone use:
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/harmonyhub.git
-cd harmonyhub
-
-# Install dependencies
-bun install
-
-# Start the development server
-bun run dev
-```
-
-### Streamlit Application
-
-```bash
-# Install required dependencies
-pip install streamlit music21 midiutil matplotlib miditoolkit
-
-# Run the Streamlit app
-cd harmonyhub
 streamlit run streamlit_app.py
 ```
 
@@ -69,21 +121,25 @@ streamlit run streamlit_app.py
 
 ### Phase 1: LLM-Driven Exercise Generation with VexFlow Rendering (Current)
 
-- MIDI-GPT integration fine-tuned on graded exercises for various instruments
-- Web-based interface for specifying exercise parameters
-- Rendering generated exercises as interactive sheet music
+- MIDI-GPT integration fine-tuned on graded exercises for various instruments.
+- Web-based interface for specifying exercise parameters.
+- Rendering generated exercises as interactive sheet music.
 
 ### Phase 2: Student Performance Assessment
 
-- Integration with audio input for performance assessment
-- Automated feedback generation
-- Progress tracking and analytics
+- Integration with audio input for performance assessment.
+- Automated feedback generation.
+- Progress tracking and analytics.
 
 ### Phase 3: Adaptive Learning and Collaboration
 
-- Dynamic adjustment of exercise difficulty based on student performance
-- Collaborative features for teacher-student interaction
-- Integration with popular learning management systems
+- Dynamic adjustment of exercise difficulty based on student performance.
+- Collaborative features for teacher-student interaction.
+- Integration with popular learning management systems.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import dynamic from "next/dynamic";
 import { type ExerciseParameters, type GeneratedExercise, generateExercise } from "~/utils/midi-gpt-integration";
+import { generateExerciseMetadataXML, downloadXML } from "~/utils/xml-generator";
+import { convertMusicXMLToMIDI, downloadMIDI, generateSimpleMIDI } from "~/utils/midi-export";
 
 // Import the SheetMusicRenderer component dynamically to avoid server-side rendering issues
 const SheetMusicRenderer = dynamic(
@@ -285,14 +287,65 @@ export default function ExerciseGenerator() {
               </div>
               <div className="flex justify-between">
                 <button
+                  onClick={() => {
+                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    // Generate some simple notes for playback
+                    const oscillator = audioContext.createOscillator();
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4
+
+                    const gainNode = audioContext.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+
+                    // Play a simple sequence
+                    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+                    oscillator.start();
+
+                    // Play a simple melody
+                    const notes = [440, 494, 523, 587, 659, 698, 784];
+                    let time = audioContext.currentTime;
+
+                    notes.forEach((freq, i) => {
+                      oscillator.frequency.setValueAtTime(freq, time + i * 0.5);
+                      gainNode.gain.setValueAtTime(0.5, time + i * 0.5);
+                      gainNode.gain.setValueAtTime(0, time + i * 0.5 + 0.4);
+                    });
+
+                    // Stop after the sequence
+                    oscillator.stop(time + notes.length * 0.5 + 0.5);
+                  }}
                   className="rounded-md bg-gray-200 px-4 py-2 text-gray-800 hover:bg-gray-300"
                 >
                   Play
                 </button>
                 <button
+                  onClick={() => {
+                    try {
+                      // Try to convert the musicXML to MIDI
+                      const midiData = generatedExercise.musicXML
+                        ? convertMusicXMLToMIDI(generatedExercise.musicXML)
+                        : generateSimpleMIDI(
+                            generatedExercise.metadata.key,
+                            generatedExercise.metadata.timeSignature,
+                            ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"]
+                          );
+
+                      downloadMIDI(midiData, `exercise-${generatedExercise.exerciseId}.mid`);
+                    } catch (error) {
+                      console.error("Error generating MIDI:", error);
+                      alert("There was an error generating the MIDI file. Please try again.");
+                    }
+                  }}
                   className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700"
                 >
                   Download MIDI
+                </button>
+                <button
+                  onClick={() => downloadXML(generateExerciseMetadataXML(generatedExercise), `exercise-${generatedExercise.exerciseId}.xml`)}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                >
+                  Download XML
                 </button>
               </div>
               <div className="mt-4">

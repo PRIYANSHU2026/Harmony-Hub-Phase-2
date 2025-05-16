@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Flow } from "vexflow";
+import { DOMParser } from "xmldom";
 
 interface SheetMusicRendererProps {
   musicXml?: string;
@@ -10,11 +11,18 @@ interface SheetMusicRendererProps {
   height?: number;
 }
 
+interface Note {
+  keys: string[];
+  duration: string;
+  dots?: number;
+  accidental?: string;
+}
+
 export default function SheetMusicRenderer({
   musicXml,
   midiData,
   width = 500,
-  height = 150,
+  height = 250,
 }: SheetMusicRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -27,9 +35,6 @@ export default function SheetMusicRenderer({
     }
 
     try {
-      // Create a simple score with static notes for demonstration
-      // In a real app, this would parse the MusicXML data
-
       // Initialize VexFlow renderer
       const renderer = new Flow.Renderer(
         containerRef.current,
@@ -39,26 +44,89 @@ export default function SheetMusicRenderer({
       renderer.resize(width, height);
       const context = renderer.getContext();
 
+      if (musicXml) {
+        renderMusicXML(musicXml, context, width, height);
+      } else {
+        // Fallback to simple staff if no MusicXML is provided
+        renderDefaultStaff(context, width, height);
+      }
+    } catch (error) {
+      console.error("Error rendering sheet music:", error);
+    }
+  }, [width, height, musicXml, midiData]);
+
+  // Function to parse MusicXML and render it
+  const renderMusicXML = (xml: string, context: any, width: number, height: number) => {
+    try {
+      // Parse the XML
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xml, "text/xml");
+
+      // Extract key information
+      const fifths = getNodeValue(xmlDoc, "//key/fifths") || "0";
+
+      // Extract time signature
+      const beats = getNodeValue(xmlDoc, "//time/beats") || "4";
+      const beatType = getNodeValue(xmlDoc, "//time/beat-type") || "4";
+
+      // Extract clef
+      const clefSign = getNodeValue(xmlDoc, "//clef/sign") || "G";
+      const clefLine = getNodeValue(xmlDoc, "//clef/line") || "2";
+
       // Create a stave
       const stave = new Flow.Stave(10, 40, width - 20);
-      stave.addClef("treble").addTimeSignature("4/4");
+
+      // Add clef and time signature
+      stave.addClef(clefSign === "G" ? "treble" : "bass");
+      stave.addTimeSignature(`${beats}/${beatType}`);
+
+      // Add key signature
+      if (parseInt(fifths) !== 0) {
+        // Convert fifths to key signature
+        const keySignature = convertFifthsToKey(parseInt(fifths));
+        stave.addKeySignature(keySignature);
+      }
+
       stave.setContext(context).draw();
 
-      // Create some notes
-      const notes = [
-        new Flow.StaveNote({ keys: ["c/4"], duration: "q" }),
-        new Flow.StaveNote({ keys: ["d/4"], duration: "q" }),
-        new Flow.StaveNote({ keys: ["e/4"], duration: "q" }),
-        new Flow.StaveNote({ keys: ["f/4"], duration: "q" })
-      ];
+      // Parse notes from MusicXML
+      const notes = parseNotesFromMusicXML(xmlDoc);
 
-      // Create a voice
+      if (notes.length === 0) {
+        // If no notes were parsed, create some default notes
+        renderDefaultNotes(context, stave, width);
+        return;
+      }
+
+      // Create a voice with the extracted time signature
       const voice = new Flow.Voice({
-        num_beats: 4,
-        beat_value: 4
+        num_beats: parseInt(beats),
+        beat_value: parseInt(beatType)
       });
 
-      voice.addTickables(notes);
+      // Convert parsed notes to VexFlow notes
+      const vexflowNotes = notes.map((noteData: Note) => {
+        const note = new Flow.StaveNote({
+          keys: noteData.keys,
+          duration: noteData.duration
+        });
+
+        // Add dots if needed
+        if (noteData.dots) {
+          for (let i = 0; i < noteData.dots; i++) {
+            note.addDot(0);
+          }
+        }
+
+        // Add accidental if needed
+        if (noteData.accidental) {
+          note.addAccidental(0, new Flow.Accidental(noteData.accidental));
+        }
+
+        return note;
+      });
+
+      voice.addTickables(vexflowNotes);
 
       // Format and draw the notes
       new Flow.Formatter()
@@ -67,9 +135,160 @@ export default function SheetMusicRenderer({
 
       voice.draw(context, stave);
     } catch (error) {
-      console.error("Error rendering sheet music:", error);
+      console.error("Error parsing MusicXML:", error);
+      // Fallback to simple staff if parsing fails
+      renderDefaultStaff(context, width, height);
     }
-  }, [width, height, musicXml, midiData]);
+  };
+
+  // Helper function to render a default staff with notes
+  const renderDefaultStaff = (context: any, width: number, height: number) => {
+    // Create a stave
+    const stave = new Flow.Stave(10, 40, width - 20);
+    stave.addClef("treble").addTimeSignature("4/4");
+    stave.setContext(context).draw();
+
+    renderDefaultNotes(context, stave, width);
+  };
+
+  // Helper function to render default notes
+  const renderDefaultNotes = (context: any, stave: any, width: number) => {
+    // Create some default notes
+    const notes = [
+      new Flow.StaveNote({ keys: ["c/4"], duration: "q" }),
+      new Flow.StaveNote({ keys: ["d/4"], duration: "q" }),
+      new Flow.StaveNote({ keys: ["e/4"], duration: "q" }),
+      new Flow.StaveNote({ keys: ["f/4"], duration: "q" })
+    ];
+
+    // Create a default voice
+    const voice = new Flow.Voice({
+      num_beats: 4,
+      beat_value: 4
+    });
+
+    voice.addTickables(notes);
+
+    // Format and draw the notes
+    new Flow.Formatter()
+      .joinVoices([voice])
+      .format([voice], width - 50);
+
+    voice.draw(context, stave);
+  };
+
+  // Helper function to extract node value from XML
+  const getNodeValue = (doc: Document, xpath: string): string | null => {
+    try {
+      // Simple XPath-like functionality
+      const path = xpath.replace(/\/\//g, '').split('/');
+      let currentNode: any = doc;
+
+      for (const segment of path) {
+        if (!currentNode.getElementsByTagName) return null;
+        const elements = currentNode.getElementsByTagName(segment);
+        if (elements.length === 0) return null;
+        currentNode = elements[0];
+      }
+
+      return currentNode.textContent || null;
+    } catch (e) {
+      console.error("XPath error:", e);
+      return null;
+    }
+  };
+
+  // Helper function to parse notes from MusicXML
+  const parseNotesFromMusicXML = (doc: Document): Note[] => {
+    const result: Note[] = [];
+
+    try {
+      const noteElements = doc.getElementsByTagName('note');
+
+      for (let i = 0; i < noteElements.length; i++) {
+        const noteElement = noteElements[i];
+
+        // Check if it's a rest
+        const restElements = noteElement.getElementsByTagName('rest');
+        const isRest = restElements.length > 0;
+
+        // Get pitch information (if not a rest)
+        let step = "C";
+        let octave = "4";
+        let alter = 0;
+
+        if (!isRest) {
+          const pitchElement = noteElement.getElementsByTagName('pitch')[0];
+          if (pitchElement) {
+            const stepElement = pitchElement.getElementsByTagName('step')[0];
+            const octaveElement = pitchElement.getElementsByTagName('octave')[0];
+            const alterElement = pitchElement.getElementsByTagName('alter')[0];
+
+            if (stepElement) step = stepElement.textContent || "C";
+            if (octaveElement) octave = octaveElement.textContent || "4";
+            if (alterElement) alter = parseInt(alterElement.textContent || "0");
+          }
+        }
+
+        // Get duration information
+        const typeElement = noteElement.getElementsByTagName('type')[0];
+        let durationType = "q"; // Default to quarter note
+
+        if (typeElement) {
+          const type = typeElement.textContent;
+          switch (type) {
+            case 'whole': durationType = 'w'; break;
+            case 'half': durationType = 'h'; break;
+            case 'quarter': durationType = 'q'; break;
+            case 'eighth': durationType = '8'; break;
+            case 'sixteenth': durationType = '16'; break;
+            default: durationType = 'q';
+          }
+        }
+
+        // Check for dots
+        const dotElements = noteElement.getElementsByTagName('dot');
+        const dots = dotElements.length;
+
+        // Create the key string
+        let key = isRest ? "b/4" : `${step.toLowerCase()}/${octave}`;
+
+        // Handle accidentals based on alter value
+        let accidental = null;
+        if (alter === 1) accidental = "#";
+        else if (alter === -1) accidental = "b";
+        else if (alter === 2) accidental = "##";
+        else if (alter === -2) accidental = "bb";
+
+        // Create the note object
+        const note: Note = {
+          keys: [key],
+          duration: isRest ? durationType + 'r' : durationType,
+          dots: dots > 0 ? dots : undefined,
+          accidental: accidental || undefined
+        };
+
+        result.push(note);
+      }
+    } catch (error) {
+      console.error("Error parsing notes:", error);
+    }
+
+    return result;
+  };
+
+  // Helper function to convert fifths value to key signature
+  const convertFifthsToKey = (fifths: number): string => {
+    // Positive fifths are sharps, negative are flats
+    if (fifths > 0) {
+      const sharpKeys = ["C", "G", "D", "A", "E", "B", "F#", "C#"];
+      return sharpKeys[Math.min(fifths, 7)];
+    } else if (fifths < 0) {
+      const flatKeys = ["C", "F", "Bb", "Eb", "Ab", "Db", "Gb", "Cb"];
+      return flatKeys[Math.min(Math.abs(fifths), 7)];
+    }
+    return "C"; // Default to C major / A minor
+  };
 
   return (
     <div className="vexflow-container" ref={containerRef} style={{ width, height }} />
