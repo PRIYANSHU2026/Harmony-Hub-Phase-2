@@ -1,235 +1,225 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { setHuggingFaceToken, getHuggingFaceToken, recordUserMidi, analyzeMidiPerformance } from "~/utils/midi-gpt-integration";
+import { getHuggingFaceToken, setHuggingFaceToken } from "~/utils/midi-gpt-integration";
+import TrumpetChatbot from "~/components/trumpet-chatbot";
+import TrumpetSoundPlayer from "~/components/trumpet-sound-player";
 
 export default function AITools() {
-  const [apiToken, setApiToken] = useState("");
-  const [tokenSaved, setTokenSaved] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [recordedMidi, setRecordedMidi] = useState<string | null>(null);
-  const [analysisResults, setAnalysisResults] = useState<any | null>(null);
-  const [recordingDuration, setRecordingDuration] = useState(10);
-  const [loading, setLoading] = useState({ token: false, recording: false, analysis: false });
+  const [token, setToken] = useState<string>("");
+  const [tokenStatus, setTokenStatus] = useState<"none" | "valid" | "invalid">("none");
+  const [selectedKey, setSelectedKey] = useState<string>("C");
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
-  // Load existing token if available
+  // Load token from localStorage on component mount
   useEffect(() => {
-    const token = getHuggingFaceToken();
-    if (token) {
-      setApiToken(token);
-      setTokenSaved(true);
+    const savedToken = getHuggingFaceToken();
+    if (savedToken) {
+      setToken(savedToken);
+      setTokenStatus("valid");
     }
   }, []);
 
-  // Function to save Hugging Face API token
-  const saveApiToken = async () => {
-    if (!apiToken.trim()) return;
-
-    setLoading((prev) => ({ ...prev, token: true }));
-    try {
-      const result = setHuggingFaceToken(apiToken);
-      if (result.success) {
-        setTokenSaved(true);
-      }
-    } catch (error) {
-      console.error("Error saving API token:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, token: false }));
-    }
-  };
-
-  // Function to start MIDI recording
-  const startRecording = async () => {
-    setLoading((prev) => ({ ...prev, recording: true }));
-    setRecording(true);
-    setRecordedMidi(null);
-    setAnalysisResults(null);
-
-    try {
-      const duration = recordingDuration * 1000; // Convert to milliseconds
-      const midiData = await recordUserMidi(duration);
-      setRecordedMidi(midiData);
-    } catch (error) {
-      console.error("Error recording MIDI:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, recording: false }));
-      setRecording(false);
-    }
-  };
-
-  // Function to analyze recorded MIDI
-  const analyzeMidi = async () => {
-    if (!recordedMidi) return;
-
-    setLoading((prev) => ({ ...prev, analysis: true }));
-    try {
-      const results = await analyzeMidiPerformance(recordedMidi);
-      setAnalysisResults(results);
-    } catch (error) {
-      console.error("Error analyzing MIDI:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, analysis: false }));
+  const handleSaveToken = () => {
+    if (token.trim()) {
+      setHuggingFaceToken(token.trim());
+      setTokenStatus("valid");
+    } else {
+      setTokenStatus("invalid");
     }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">AI Tools</h1>
+        <h1 className="mb-2 text-3xl font-bold">Trumpet Practice AI Tools</h1>
         <p className="text-gray-600">
-          Interact with our advanced AI models for music generation, analysis, and improvement
+          Advanced AI tools for trumpet practice with Mistral 7B integration
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Hugging Face API Token Section */}
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="mb-6 text-xl font-semibold">Hugging Face API Token</h2>
-          <p className="mb-4 text-sm text-gray-600">
-            To use our Mistral 7B-powered features, you need to provide your Hugging Face API token.
-            You can get one for free at <a href="https://huggingface.co/settings/tokens" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">huggingface.co</a>
-          </p>
-          <div className="mb-4">
-            <label htmlFor="api-token" className="mb-1 block text-sm font-medium">
-              API Token
-            </label>
-            <input
-              id="api-token"
-              type="password"
-              value={apiToken}
-              onChange={(e) => setApiToken(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-2"
-              placeholder="Enter your Hugging Face API token"
-            />
-          </div>
-          <div className="mb-4">
-            <button
-              onClick={saveApiToken}
-              disabled={loading.token || !apiToken.trim()}
-              className="w-full rounded-md bg-primary py-2 text-white hover:bg-primary/90 disabled:bg-gray-400"
-            >
-              {loading.token ? "Saving..." : "Save Token"}
-            </button>
-          </div>
-          {tokenSaved && (
-            <div className="mt-2 rounded-md bg-green-50 p-2 text-center text-sm text-green-700">
-              API token saved successfully!
-            </div>
-          )}
-        </div>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        {/* AI Settings Section */}
+        <div className="lg:col-span-4">
+          <div className="rounded-lg border bg-white p-6 shadow-sm">
+            <h2 className="mb-6 text-xl font-semibold">AI Settings</h2>
 
-        {/* MIDI Recording Section */}
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="mb-6 text-xl font-semibold">MIDI Recording & Analysis</h2>
-          <p className="mb-4 text-sm text-gray-600">
-            Record your MIDI performance and get AI-powered analysis and suggestions for improvement.
-          </p>
-
-          <div className="mb-4">
-            <label htmlFor="duration" className="mb-1 block text-sm font-medium">
-              Recording Duration (seconds)
-            </label>
-            <input
-              id="duration"
-              type="number"
-              min="5"
-              max="60"
-              value={recordingDuration}
-              onChange={(e) => setRecordingDuration(parseInt(e.target.value) || 10)}
-              className="w-full rounded-md border border-gray-300 p-2"
-            />
-          </div>
-
-          <div className="mb-4">
-            <button
-              onClick={startRecording}
-              disabled={loading.recording}
-              className="w-full rounded-md bg-red-600 py-2 text-white hover:bg-red-700 disabled:bg-gray-400"
-            >
-              {loading.recording ? `Recording... (${recordingDuration}s)` : "Start Recording"}
-            </button>
-          </div>
-
-          {recordedMidi && (
-            <div className="mb-4">
-              <div className="mb-2 flex items-center justify-between rounded-md bg-green-50 p-2">
-                <span className="text-sm text-green-700">Recording completed!</span>
-                <button
-                  onClick={analyzeMidi}
-                  disabled={loading.analysis}
-                  className="rounded-md bg-primary px-3 py-1 text-sm text-white hover:bg-primary/90"
+            <div className="mb-6">
+              <label htmlFor="hf-token" className="mb-2 block text-sm font-medium">
+                Hugging Face API Token
+              </label>
+              <div className="mb-2">
+                <input
+                  type="password"
+                  id="hf-token"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="Enter your Hugging Face API token"
+                  className="w-full rounded-md border border-gray-300 p-2"
+                />
+              </div>
+              <button
+                onClick={handleSaveToken}
+                className="w-full rounded-md bg-primary py-2 text-white hover:bg-primary/90"
+              >
+                Save Token
+              </button>
+              {tokenStatus === "valid" && (
+                <p className="mt-2 text-sm text-green-600">
+                  Token saved successfully. You can now use all Mistral 7B features.
+                </p>
+              )}
+              {tokenStatus === "invalid" && (
+                <p className="mt-2 text-sm text-red-600">
+                  Please enter a valid token.
+                </p>
+              )}
+              <p className="mt-4 text-xs text-gray-500">
+                Your token is stored securely in your browser&apos;s local storage and is only used to
+                access Hugging Face API services. Get your free token at{" "}
+                <a
+                  href="https://huggingface.co/settings/tokens"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline"
                 >
-                  {loading.analysis ? "Analyzing..." : "Analyze"}
-                </button>
+                  huggingface.co
+                </a>
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="mb-2 text-lg font-medium">Trumpet Sound Library</h3>
+              <p className="mb-4 text-sm text-gray-600">
+                Practice with authentic trumpet sounds in different keys
+              </p>
+
+              <label htmlFor="key-selector" className="mb-2 block text-sm font-medium">
+                Select Key
+              </label>
+              <select
+                id="key-selector"
+                value={selectedKey}
+                onChange={(e) => setSelectedKey(e.target.value)}
+                className="mb-4 w-full rounded-md border border-gray-300 p-2"
+              >
+                <option value="C">C Major</option>
+                <option value="F">F Major</option>
+                <option value="Bb">Bb Major</option>
+                <option value="G">G Major</option>
+                <option value="D">D Major</option>
+                <option value="A">A Major/Minor</option>
+                <option value="E">E Major/Minor</option>
+              </select>
+
+              <TrumpetSoundPlayer selectedKey={selectedKey} />
+            </div>
+
+            <div>
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="w-full rounded-md border border-gray-300 bg-gray-50 py-2 text-gray-700 hover:bg-gray-100"
+              >
+                {showAdvanced ? "Hide Advanced Options" : "Show Advanced Options"}
+              </button>
+
+              {showAdvanced && (
+                <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
+                  <h3 className="mb-2 text-lg font-medium">Advanced AI Options</h3>
+                  <div className="mb-3">
+                    <label className="mb-1 block text-sm font-medium">
+                      Model Version
+                    </label>
+                    <select className="w-full rounded-md border border-gray-300 p-2" disabled>
+                      <option>Mistral 7B Instruct v0.3 (Default)</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Optimized for trumpet-specific guidance and feedback
+                    </p>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="mb-1 block text-sm font-medium">Temperature</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value="70"
+                      disabled
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>More Focused</span>
+                      <span>More Creative</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* AI Assistant Section */}
+        <div className="lg:col-span-8">
+          <div className="mb-8 rounded-lg border bg-white p-6 shadow-sm">
+            <h2 className="mb-6 text-xl font-semibold">Trumpet Practice Assistant</h2>
+            <p className="mb-4 text-gray-600">
+              Get personalized trumpet practice advice from our Mistral 7B-powered assistant.
+              Ask about technique, practice routines, troubleshooting, or music theory.
+            </p>
+
+            <TrumpetChatbot
+              initialMessage="I'm your trumpet practice assistant powered by Mistral 7B AI. I can help you with trumpet technique, practice routines, music theory, and performance tips. What would you like help with today?"
+              showTokenWarning={tokenStatus !== "valid"}
+            />
+          </div>
+
+          <div className="rounded-lg border bg-white p-6 shadow-sm">
+            <h2 className="mb-6 text-xl font-semibold">Practice Suggestions</h2>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-md border border-green-100 bg-green-50 p-4">
+                <h3 className="mb-2 font-medium text-green-800">Daily Warm-Up Routine</h3>
+                <ul className="list-inside list-disc space-y-1 text-sm text-green-700">
+                  <li>Long tones: 5 minutes, focus on tone quality</li>
+                  <li>Lip slurs: 5 minutes, ascending and descending</li>
+                  <li>Chromatic scales: 5 minutes, full range</li>
+                  <li>Articulation exercises: 5 minutes, varying patterns</li>
+                </ul>
+              </div>
+
+              <div className="rounded-md border border-blue-100 bg-blue-50 p-4">
+                <h3 className="mb-2 font-medium text-blue-800">Range Extension</h3>
+                <ul className="list-inside list-disc space-y-1 text-sm text-blue-700">
+                  <li>Start with octave slurs in comfortable range</li>
+                  <li>Gradually expand upward, one half-step at a time</li>
+                  <li>Focus on air support and relaxed embouchure</li>
+                  <li>End practice sessions with descending exercises</li>
+                </ul>
+              </div>
+
+              <div className="rounded-md border border-purple-100 bg-purple-50 p-4">
+                <h3 className="mb-2 font-medium text-purple-800">Tone Development</h3>
+                <ul className="list-inside list-disc space-y-1 text-sm text-purple-700">
+                  <li>Mouthpiece buzzing: 3-5 minutes daily</li>
+                  <li>Listen to professional trumpet players daily</li>
+                  <li>Record yourself and analyze your sound</li>
+                  <li>Practice with a tuner for intonation awareness</li>
+                </ul>
+              </div>
+
+              <div className="rounded-md border border-yellow-100 bg-yellow-50 p-4">
+                <h3 className="mb-2 font-medium text-yellow-800">Technical Exercises</h3>
+                <ul className="list-inside list-disc space-y-1 text-sm text-yellow-700">
+                  <li>Scale patterns: all major and minor keys</li>
+                  <li>Arpeggios: major, minor, dominant 7th</li>
+                  <li>Double and triple tonguing exercises</li>
+                  <li>Flexibility studies across all registers</li>
+                </ul>
               </div>
             </div>
-          )}
-
-          {analysisResults && (
-            <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
-              <h3 className="mb-2 text-sm font-medium text-gray-700">Analysis Results:</h3>
-
-              <div className="mb-3 grid grid-cols-2 gap-2">
-                <div className="rounded-md bg-white p-2 text-center">
-                  <div className="text-xl font-semibold">{analysisResults.accuracy.toFixed(1)}%</div>
-                  <div className="text-xs text-gray-500">Overall Accuracy</div>
-                </div>
-                <div className="rounded-md bg-white p-2 text-center">
-                  <div className="text-xl font-semibold">{analysisResults.tempo.toFixed(1)} BPM</div>
-                  <div className="text-xs text-gray-500">Tempo</div>
-                </div>
-                <div className="rounded-md bg-white p-2 text-center">
-                  <div className="text-xl font-semibold">{analysisResults.rhythmAccuracy.toFixed(1)}%</div>
-                  <div className="text-xs text-gray-500">Rhythm</div>
-                </div>
-                <div className="rounded-md bg-white p-2 text-center">
-                  <div className="text-xl font-semibold">{analysisResults.pitchAccuracy.toFixed(1)}%</div>
-                  <div className="text-xs text-gray-500">Pitch</div>
-                </div>
-              </div>
-
-              <h4 className="mb-1 text-xs font-medium uppercase text-gray-500">Improvement Suggestions:</h4>
-              <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
-                {analysisResults.suggestions.map((suggestion: string, index: number) => (
-                  <li key={index}>{suggestion}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
-
-      <div className="mt-8 mb-8 rounded-lg border bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">Mistral 7B Music AI Integration</h2>
-        <p className="mb-4 text-gray-600">
-          Our system now integrates with the powerful Mistral 7B AI model to provide enhanced music generation and analysis capabilities:
-        </p>
-        <ul className="mb-6 list-inside list-disc space-y-2 text-gray-600">
-          <li>Generating complex music exercises with proper notation</li>
-          <li>Understanding and analyzing your MIDI performances</li>
-          <li>Providing personalized suggestions for improvement</li>
-          <li>Creating educational content based on your skill level</li>
-          <li>Exporting exercises as both MusicXML and MIDI formats</li>
-        </ul>
-
-        <div className="flex justify-center">
-          <Link
-            href="/exercise-generator"
-            className="rounded-md bg-primary px-6 py-3 text-white hover:bg-primary/90"
-          >
-            Try Music Exercise Generator
-          </Link>
-        </div>
-      </div>
-
-      <div className="mt-8 text-center">
-        <Link
-          href="/"
-          className="rounded-md border border-primary bg-white px-6 py-3 text-primary hover:bg-primary/10"
-        >
-          Back to Home
-        </Link>
       </div>
     </div>
   );

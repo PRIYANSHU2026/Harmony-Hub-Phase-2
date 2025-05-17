@@ -1,15 +1,19 @@
 [build]
-  command = "next build"
+  command = "bun run build"
   publish = ".next"
 
 [build.environment]
-  SKIP_ENV_VALIDATION = "1"
-  NODE_VERSION = "20"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+  NODE_VERSION = "18"
+  NEXT_TELEMETRY_DISABLED = "1"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[dev]
+  command = "bun run dev"
+  port = 3000
+
+[functions]
+  directory = "netlify/functions"

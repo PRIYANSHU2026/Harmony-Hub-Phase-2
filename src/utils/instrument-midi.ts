@@ -1,175 +1,90 @@
 /**
  * Instrument MIDI Utilities
  *
- * This file contains utilities for working with MIDI files for different instruments
+ * This file contains utilities for working with MIDI files for trumpet instrument
  */
 
-// Map of instrument names to their MIDI program numbers
+// Only keeping trumpet program number
 export const INSTRUMENT_PROGRAM_MAP: Record<string, number> = {
-  piano: 0,
-  acoustic_piano: 0,
-  bright_piano: 1,
-  electric_grand: 2,
-  honky_tonk_piano: 3,
-  electric_piano: 4,
-  electric_piano_2: 5,
-  harpsichord: 6,
-  clavinet: 7,
-
-  // Chromatic Percussion
-  celesta: 8,
-  glockenspiel: 9,
-  music_box: 10,
-  vibraphone: 11,
-  marimba: 12,
-  xylophone: 13,
-  tubular_bells: 14,
-  dulcimer: 15,
-
-  // Organ
-  hammond_organ: 16,
-  percussive_organ: 17,
-  rock_organ: 18,
-  church_organ: 19,
-  reed_organ: 20,
-  accordion: 21,
-  harmonica: 22,
-  tango_accordion: 23,
-
-  // Guitar
-  acoustic_guitar_nylon: 24,
-  acoustic_guitar_steel: 25,
-  electric_guitar_jazz: 26,
-  electric_guitar_clean: 27,
-  electric_guitar_muted: 28,
-  overdriven_guitar: 29,
-  distortion_guitar: 30,
-  guitar_harmonics: 31,
-
-  // Bass
-  acoustic_bass: 32,
-  electric_bass_finger: 33,
-  electric_bass_pick: 34,
-  fretless_bass: 35,
-  slap_bass_1: 36,
-  slap_bass_2: 37,
-  synth_bass_1: 38,
-  synth_bass_2: 39,
-
-  // Strings
-  violin: 40,
-  viola: 41,
-  cello: 42,
-  contrabass: 43,
-  tremolo_strings: 44,
-  pizzicato_strings: 45,
-  orchestral_harp: 46,
-  timpani: 47,
-
-  // Ensemble
-  string_ensemble_1: 48,
-  string_ensemble_2: 49,
-  synth_strings_1: 50,
-  synth_strings_2: 51,
-  choir_aahs: 52,
-  voice_oohs: 53,
-  synth_choir: 54,
-  orchestra_hit: 55,
-
-  // Brass
   trumpet: 56,
-  trombone: 57,
-  tuba: 58,
   muted_trumpet: 59,
-  french_horn: 60,
-  brass_section: 61,
-  synth_brass_1: 62,
-  synth_brass_2: 63,
+}
 
-  // Reed
-  soprano_sax: 64,
-  alto_sax: 65,
-  tenor_sax: 66,
-  baritone_sax: 67,
-  oboe: 68,
-  english_horn: 69,
-  bassoon: 70,
-  clarinet: 71,
-
-  // Pipe
-  piccolo: 72,
-  flute: 73,
-  recorder: 74,
-  pan_flute: 75,
-  blown_bottle: 76,
-  shakuhachi: 77,
-  whistle: 78,
-  ocarina: 79
-};
-
-// Common instrument choices in the app
+// Common instrument choices - only trumpet now
 export const COMMON_INSTRUMENTS = [
-  "piano",
   "trumpet",
-  "violin",
-  "clarinet",
-  "flute",
-  "acoustic_guitar_nylon",
-  "alto_sax"
+  "muted_trumpet",
 ];
 
-// Sample MIDI paths for common instruments
+// Sample MIDI paths for trumpet
 export const INSTRUMENT_SAMPLE_MIDI: Record<string, string[]> = {
-  piano: [
-    '/midi/piano/piano-scale-c-major.mid',
-    '/midi/piano/piano-scale-g-major.mid',
-    '/midi/piano/piano-scale-f-major.mid',
-    '/midi/piano/piano-scale-a-minor.mid',
-  ],
   trumpet: [
     '/midi/trumpet/trumpet-scale-c-major.mid',
     '/midi/trumpet/trumpet-scale-g-major.mid',
     '/midi/trumpet/trumpet-scale-f-major.mid',
   ],
-  violin: [
-    '/midi/violin/violin-scale-c-major.mid',
-    '/midi/violin/violin-scale-g-major.mid',
-    '/midi/violin/violin-scale-a-minor.mid',
+  muted_trumpet: [
+    '/midi/trumpet/trumpet-scale-c-major.mid',
+    '/midi/trumpet/trumpet-scale-g-major.mid',
+    '/midi/trumpet/trumpet-scale-f-major.mid',
   ],
-  clarinet: [
-    '/midi/clarinet/clarinet-scale-c-major.mid',
-    '/midi/clarinet/clarinet-scale-f-major.mid',
+}
+
+// Trumpet sound files mapping by key
+export const TRUMPET_SOUND_FILES: Record<string, string[]> = {
+  A: [
+    '/sounds/key/A/Lng_Swll_Flgl_Trmpt_11_A_265.wav',
+    '/sounds/key/A/Lng_Swll_Trmpt_N_Attck_12_A_265.wav',
+    '/sounds/key/A/Mdm_Swll_Flgl_Trmpt_12_A_265.wav',
+    '/sounds/key/A/Shrt_Swll_Flgl_Trmpt_12_A_265.wav',
   ],
-  flute: [
-    '/midi/flute/flute-scale-c-major.mid',
-    '/midi/flute/flute-scale-g-major.mid',
+  B: [
+    '/sounds/key/B/Lng_Swll_Flgl_Trmpt_01_B_265.wav',
+    '/sounds/key/B/Lng_Swll_Trmpt_N_Attck_02_B_265.wav',
+    '/sounds/key/B/Mdm_Swll_Flgl_Trmpt_02_B_265.wav',
+    '/sounds/key/B/Shrt_Swll_Flgl_Trmpt_02_B_265.wav',
   ],
-  acoustic_guitar_nylon: [
-    '/midi/guitar/guitar-scale-c-major.mid',
-    '/midi/guitar/guitar-scale-g-major.mid',
-    '/midi/guitar/guitar-scale-a-minor.mid',
+  C: [
+    '/sounds/key/C/125_C_Loop_Trumpet_265_SP04.wav',
+    '/sounds/key/C/Lng_Swll_Flgl_Trmpt_02_C_265.wav',
+    '/sounds/key/C/Lng_Swll_Trmpt_N_Attck_03_C_265.wav',
+    '/sounds/key/C/Mdm_Swll_Flgl_Trmpt_03_C_265.wav',
+    '/sounds/key/C/Shrt_Swll_Flgl_Trmpt_03_C_265.wav',
   ],
-  alto_sax: [
-    '/midi/sax/alto-sax-scale-c-major.mid',
-    '/midi/sax/alto-sax-scale-g-major.mid',
-  ]
-};
+  D: [
+    '/sounds/key/D/Lng_Swll_Flgl_Trmpt_04_D_265.wav',
+    '/sounds/key/D/Lng_Swll_Trmpt_N_Attck_05_D_265.wav',
+    '/sounds/key/D/Mdm_Swll_Flgl_Trmpt_05_D_265.wav',
+    '/sounds/key/D/Shrt_Swll_Flgl_Trmpt_05_D_265.wav',
+  ],
+  E: [
+    '/sounds/key/E/Lng_Swll_Flgl_Trmpt_06_E_265.wav',
+    '/sounds/key/E/Lng_Swll_Trmpt_N_Attck_07_E_265.wav',
+    '/sounds/key/E/Mdm_Swll_Flgl_Trmpt_07_E_265.wav',
+    '/sounds/key/E/Shrt_Swll_Flgl_Trmpt_07_E_265.wav',
+  ],
+  F: [
+    '/sounds/key/F/125_F_Loop_Trumpet_265_SP01.wav',
+    '/sounds/key/F/Lng_Swll_Flgl_Trmpt_07_F_265.wav',
+    '/sounds/key/F/Lng_Swll_Trmpt_N_Attck_08_F_265.wav',
+    '/sounds/key/F/Mdm_Swll_Flgl_Trmpt_08_F_265.wav',
+    '/sounds/key/F/Shrt_Swll_Flgl_Trmpt_08_F_265.wav',
+  ],
+  G: [
+    '/sounds/key/G/Lng_Swll_Flgl_Trmpt_09_G_265.wav',
+    '/sounds/key/G/Lng_Swll_Trmpt_N_Attck_10_G_265.wav',
+    '/sounds/key/G/Mdm_Swll_Flgl_Trmpt_10_G_265.wav',
+    '/sounds/key/G/Shrt_Swll_Flgl_Trmpt_10_G_265.wav',
+  ],
+}
 
 /**
  * Get a friendly display name for an instrument
  */
 export function getInstrumentDisplayName(instrumentKey: string): string {
   const displayNames: Record<string, string> = {
-    piano: "Piano",
-    acoustic_piano: "Acoustic Piano",
-    bright_piano: "Bright Piano",
     trumpet: "Trumpet",
-    violin: "Violin",
-    clarinet: "Clarinet",
-    flute: "Flute",
-    acoustic_guitar_nylon: "Acoustic Guitar",
-    alto_sax: "Alto Saxophone",
-    // Add more mappings as needed
+    muted_trumpet: "Muted Trumpet",
   };
 
   return displayNames[instrumentKey] || instrumentKey.split('_').map(word =>
@@ -181,14 +96,14 @@ export function getInstrumentDisplayName(instrumentKey: string): string {
  * Get a sample MIDI file for an instrument
  * @param instrument The instrument key
  * @param index Optional index to get a specific sample
- * @returns Path to the MIDI file or a default one if not found
+ * @returns Path to the MIDI file
  */
 export function getInstrumentSampleMidi(instrument: string, index?: number): string {
   const samples = INSTRUMENT_SAMPLE_MIDI[instrument];
 
   if (!samples || samples.length === 0) {
-    // Return a default piano sample if no samples exist for this instrument
-    return '/midi/piano/piano-scale-c-major.mid';
+    // Return a default trumpet sample if no samples exist for this instrument
+    return '/midi/trumpet/trumpet-scale-c-major.mid';
   }
 
   if (index !== undefined && index >= 0 && index < samples.length) {
@@ -197,4 +112,38 @@ export function getInstrumentSampleMidi(instrument: string, index?: number): str
 
   // Return the first sample by default
   return samples[0];
+}
+
+/**
+ * Get trumpet sound files for a specific key
+ * @param key The musical key (A-G)
+ * @param index Optional index to get a specific sample
+ * @returns Path to the sound file
+ */
+export function getTrumpetSoundFile(key: string, index?: number): string {
+  // Normalize key to uppercase single letter
+  const normalizedKey = key.charAt(0).toUpperCase();
+
+  const sounds = TRUMPET_SOUND_FILES[normalizedKey];
+
+  if (!sounds || sounds.length === 0) {
+    // Return a default C trumpet sound if no sounds exist for this key
+    return '/sounds/key/C/125_C_Loop_Trumpet_265_SP04.wav';
+  }
+
+  if (index !== undefined && index >= 0 && index < sounds.length) {
+    return sounds[index];
+  }
+
+  // Return a random sound file for the key
+  const randomIndex = Math.floor(Math.random() * sounds.length);
+  return sounds[randomIndex];
+}
+
+/**
+ * Get all trumpet sound files for practice
+ * @returns Object with all trumpet sounds organized by key
+ */
+export function getAllTrumpetSounds(): Record<string, string[]> {
+  return TRUMPET_SOUND_FILES;
 }

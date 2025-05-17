@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Flow } from "vexflow";
+import { Factory, Formatter, Renderer, Stave, StaveNote, Voice, Accidental } from "vexflow";
 import { DOMParser } from "xmldom";
 
 interface SheetMusicRendererProps {
@@ -35,20 +35,22 @@ export default function SheetMusicRenderer({
     }
 
     try {
-      // Initialize VexFlow renderer
-      const renderer = new Flow.Renderer(
-        containerRef.current,
-        Flow.Renderer.Backends.SVG
-      );
+      // Initialize VexFlow factory
+      const vf = new Factory({
+        renderer: {
+          elementId: containerRef.current,
+          width,
+          height,
+        },
+      });
 
-      renderer.resize(width, height);
-      const context = renderer.getContext();
+      const context = vf.getContext();
 
       if (musicXml) {
-        renderMusicXML(musicXml, context, width, height);
+        renderMusicXML(musicXml, vf, context, width, height);
       } else {
         // Fallback to simple staff if no MusicXML is provided
-        renderDefaultStaff(context, width, height);
+        renderDefaultStaff(vf, context, width, height);
       }
     } catch (error) {
       console.error("Error rendering sheet music:", error);
@@ -56,7 +58,7 @@ export default function SheetMusicRenderer({
   }, [width, height, musicXml, midiData]);
 
   // Function to parse MusicXML and render it
-  const renderMusicXML = (xml: string, context: any, width: number, height: number) => {
+  const renderMusicXML = (xml: string, vf: any, context: any, width: number, height: number) => {
     try {
       // Parse the XML
       const parser = new DOMParser();
@@ -74,7 +76,7 @@ export default function SheetMusicRenderer({
       const clefLine = getNodeValue(xmlDoc, "//clef/line") || "2";
 
       // Create a stave
-      const stave = new Flow.Stave(10, 40, width - 20);
+      const stave = new Stave(10, 40, width - 20);
 
       // Add clef and time signature
       stave.addClef(clefSign === "G" ? "treble" : "bass");
@@ -94,19 +96,19 @@ export default function SheetMusicRenderer({
 
       if (notes.length === 0) {
         // If no notes were parsed, create some default notes
-        renderDefaultNotes(context, stave, width);
+        renderDefaultNotes(vf, context, stave, width);
         return;
       }
 
       // Create a voice with the extracted time signature
-      const voice = new Flow.Voice({
+      const voice = new Voice({
         num_beats: parseInt(beats),
         beat_value: parseInt(beatType)
       });
 
       // Convert parsed notes to VexFlow notes
       const vexflowNotes = notes.map((noteData: Note) => {
-        const note = new Flow.StaveNote({
+        const note = new StaveNote({
           keys: noteData.keys,
           duration: noteData.duration
         });
@@ -120,7 +122,7 @@ export default function SheetMusicRenderer({
 
         // Add accidental if needed
         if (noteData.accidental) {
-          note.addAccidental(0, new Flow.Accidental(noteData.accidental));
+          note.addModifier(new Accidental(noteData.accidental), 0);
         }
 
         return note;
@@ -129,7 +131,7 @@ export default function SheetMusicRenderer({
       voice.addTickables(vexflowNotes);
 
       // Format and draw the notes
-      new Flow.Formatter()
+      new Formatter()
         .joinVoices([voice])
         .format([voice], width - 50);
 
@@ -137,32 +139,32 @@ export default function SheetMusicRenderer({
     } catch (error) {
       console.error("Error parsing MusicXML:", error);
       // Fallback to simple staff if parsing fails
-      renderDefaultStaff(context, width, height);
+      renderDefaultStaff(vf, context, width, height);
     }
   };
 
   // Helper function to render a default staff with notes
-  const renderDefaultStaff = (context: any, width: number, height: number) => {
+  const renderDefaultStaff = (vf: any, context: any, width: number, height: number) => {
     // Create a stave
-    const stave = new Flow.Stave(10, 40, width - 20);
+    const stave = new Stave(10, 40, width - 20);
     stave.addClef("treble").addTimeSignature("4/4");
     stave.setContext(context).draw();
 
-    renderDefaultNotes(context, stave, width);
+    renderDefaultNotes(vf, context, stave, width);
   };
 
   // Helper function to render default notes
-  const renderDefaultNotes = (context: any, stave: any, width: number) => {
+  const renderDefaultNotes = (vf: any, context: any, stave: any, width: number) => {
     // Create some default notes
     const notes = [
-      new Flow.StaveNote({ keys: ["c/4"], duration: "q" }),
-      new Flow.StaveNote({ keys: ["d/4"], duration: "q" }),
-      new Flow.StaveNote({ keys: ["e/4"], duration: "q" }),
-      new Flow.StaveNote({ keys: ["f/4"], duration: "q" })
+      new StaveNote({ keys: ["c/4"], duration: "q" }),
+      new StaveNote({ keys: ["d/4"], duration: "q" }),
+      new StaveNote({ keys: ["e/4"], duration: "q" }),
+      new StaveNote({ keys: ["f/4"], duration: "q" })
     ];
 
     // Create a default voice
-    const voice = new Flow.Voice({
+    const voice = new Voice({
       num_beats: 4,
       beat_value: 4
     });
@@ -170,7 +172,7 @@ export default function SheetMusicRenderer({
     voice.addTickables(notes);
 
     // Format and draw the notes
-    new Flow.Formatter()
+    new Formatter()
       .joinVoices([voice])
       .format([voice], width - 50);
 
