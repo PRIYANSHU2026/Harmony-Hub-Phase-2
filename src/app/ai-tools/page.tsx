@@ -1,69 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { setHuggingFaceToken, getHuggingFaceToken, recordUserMidi, analyzeMidiPerformance } from "~/utils/midi-gpt-integration";
 
 export default function AITools() {
-  const [textInput, setTextInput] = useState("");
-  const [speechInput, setSpeechInput] = useState("");
-  const [textResponse, setTextResponse] = useState("");
-  const [audioUrl, setAudioUrl] = useState("");
-  const [loading, setLoading] = useState({ text: false, speech: false });
+  const [apiToken, setApiToken] = useState("");
+  const [tokenSaved, setTokenSaved] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordedMidi, setRecordedMidi] = useState<string | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<any | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(10);
+  const [loading, setLoading] = useState({ token: false, recording: false, analysis: false });
 
-  // Function to call the text generation API
-  const generateText = async () => {
-    if (!textInput.trim()) return;
+  // Load existing token if available
+  useEffect(() => {
+    const token = getHuggingFaceToken();
+    if (token) {
+      setApiToken(token);
+      setTokenSaved(true);
+    }
+  }, []);
 
-    setLoading((prev) => ({ ...prev, text: true }));
+  // Function to save Hugging Face API token
+  const saveApiToken = async () => {
+    if (!apiToken.trim()) return;
+
+    setLoading((prev) => ({ ...prev, token: true }));
     try {
-      const response = await fetch("/api/ai/text-generation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt: textInput }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setTextResponse(data.text);
-      } else {
-        setTextResponse(`Error: ${data.error || "Failed to generate text"}`);
+      const result = setHuggingFaceToken(apiToken);
+      if (result.success) {
+        setTokenSaved(true);
       }
     } catch (error) {
-      console.error("Error generating text:", error);
-      setTextResponse("Error: Failed to connect to the text generation service");
+      console.error("Error saving API token:", error);
     } finally {
-      setLoading((prev) => ({ ...prev, text: false }));
+      setLoading((prev) => ({ ...prev, token: false }));
     }
   };
 
-  // Function to call the text-to-speech API
-  const generateSpeech = async () => {
-    if (!speechInput.trim()) return;
+  // Function to start MIDI recording
+  const startRecording = async () => {
+    setLoading((prev) => ({ ...prev, recording: true }));
+    setRecording(true);
+    setRecordedMidi(null);
+    setAnalysisResults(null);
 
-    setLoading((prev) => ({ ...prev, speech: true }));
     try {
-      const response = await fetch("/api/ai/text-to-speech", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text: speechInput }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        // In a real implementation, we would set the audio URL
-        // For now, we'll just show the mock response
-        setAudioUrl("mock-audio-url");
-      } else {
-        console.error("Error:", data.error);
-      }
+      const duration = recordingDuration * 1000; // Convert to milliseconds
+      const midiData = await recordUserMidi(duration);
+      setRecordedMidi(midiData);
     } catch (error) {
-      console.error("Error generating speech:", error);
+      console.error("Error recording MIDI:", error);
     } finally {
-      setLoading((prev) => ({ ...prev, speech: false }));
+      setLoading((prev) => ({ ...prev, recording: false }));
+      setRecording(false);
+    }
+  };
+
+  // Function to analyze recorded MIDI
+  const analyzeMidi = async () => {
+    if (!recordedMidi) return;
+
+    setLoading((prev) => ({ ...prev, analysis: true }));
+    try {
+      const results = await analyzeMidiPerformance(recordedMidi);
+      setAnalysisResults(results);
+    } catch (error) {
+      console.error("Error analyzing MIDI:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, analysis: false }));
     }
   };
 
@@ -72,97 +78,139 @@ export default function AITools() {
       <div className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">AI Tools</h1>
         <p className="text-gray-600">
-          Interact with our advanced AI models for text generation and speech synthesis
+          Interact with our advanced AI models for music generation, analysis, and improvement
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Text Generation Section */}
+        {/* Hugging Face API Token Section */}
         <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="mb-6 text-xl font-semibold">Text Generation (Shuka-1)</h2>
+          <h2 className="mb-6 text-xl font-semibold">Hugging Face API Token</h2>
+          <p className="mb-4 text-sm text-gray-600">
+            To use our Mistral 7B-powered features, you need to provide your Hugging Face API token.
+            You can get one for free at <a href="https://huggingface.co/settings/tokens" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">huggingface.co</a>
+          </p>
           <div className="mb-4">
-            <label htmlFor="text-prompt" className="mb-1 block text-sm font-medium">
-              Enter a prompt
+            <label htmlFor="api-token" className="mb-1 block text-sm font-medium">
+              API Token
             </label>
-            <textarea
-              id="text-prompt"
-              rows={4}
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
+            <input
+              id="api-token"
+              type="password"
+              value={apiToken}
+              onChange={(e) => setApiToken(e.target.value)}
               className="w-full rounded-md border border-gray-300 p-2"
-              placeholder="Enter your prompt here..."
+              placeholder="Enter your Hugging Face API token"
             />
           </div>
           <div className="mb-4">
             <button
-              onClick={generateText}
-              disabled={loading.text || !textInput.trim()}
+              onClick={saveApiToken}
+              disabled={loading.token || !apiToken.trim()}
               className="w-full rounded-md bg-primary py-2 text-white hover:bg-primary/90 disabled:bg-gray-400"
             >
-              {loading.text ? "Generating..." : "Generate Text"}
+              {loading.token ? "Saving..." : "Save Token"}
             </button>
           </div>
-          {textResponse && (
-            <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
-              <h3 className="mb-2 text-sm font-medium text-gray-700">Response:</h3>
-              <p className="whitespace-pre-wrap text-gray-800">{textResponse}</p>
+          {tokenSaved && (
+            <div className="mt-2 rounded-md bg-green-50 p-2 text-center text-sm text-green-700">
+              API token saved successfully!
             </div>
           )}
         </div>
 
-        {/* Text-to-Speech Section */}
+        {/* MIDI Recording Section */}
         <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="mb-6 text-xl font-semibold">Text-to-Speech (Dia-1.6B)</h2>
+          <h2 className="mb-6 text-xl font-semibold">MIDI Recording & Analysis</h2>
+          <p className="mb-4 text-sm text-gray-600">
+            Record your MIDI performance and get AI-powered analysis and suggestions for improvement.
+          </p>
+
           <div className="mb-4">
-            <label htmlFor="speech-text" className="mb-1 block text-sm font-medium">
-              Enter text to convert to speech
+            <label htmlFor="duration" className="mb-1 block text-sm font-medium">
+              Recording Duration (seconds)
             </label>
-            <textarea
-              id="speech-text"
-              rows={4}
-              value={speechInput}
-              onChange={(e) => setSpeechInput(e.target.value)}
+            <input
+              id="duration"
+              type="number"
+              min="5"
+              max="60"
+              value={recordingDuration}
+              onChange={(e) => setRecordingDuration(parseInt(e.target.value) || 10)}
               className="w-full rounded-md border border-gray-300 p-2"
-              placeholder="Enter text to convert to speech..."
             />
           </div>
+
           <div className="mb-4">
             <button
-              onClick={generateSpeech}
-              disabled={loading.speech || !speechInput.trim()}
-              className="w-full rounded-md bg-primary py-2 text-white hover:bg-primary/90 disabled:bg-gray-400"
+              onClick={startRecording}
+              disabled={loading.recording}
+              className="w-full rounded-md bg-red-600 py-2 text-white hover:bg-red-700 disabled:bg-gray-400"
             >
-              {loading.speech ? "Generating..." : "Generate Speech"}
+              {loading.recording ? `Recording... (${recordingDuration}s)` : "Start Recording"}
             </button>
           </div>
-          {audioUrl && (
-            <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
-              <h3 className="mb-2 text-sm font-medium text-gray-700">Audio:</h3>
-              <p className="mb-2 text-sm text-gray-500">
-                In a real implementation, an audio player would appear here.
-                This is a mock implementation since we can't run the actual model in this environment.
-              </p>
-              <div className="flex justify-center">
-                <button className="rounded-md bg-gray-200 px-4 py-2 text-gray-800 hover:bg-gray-300">
-                  Play Mock Audio
+
+          {recordedMidi && (
+            <div className="mb-4">
+              <div className="mb-2 flex items-center justify-between rounded-md bg-green-50 p-2">
+                <span className="text-sm text-green-700">Recording completed!</span>
+                <button
+                  onClick={analyzeMidi}
+                  disabled={loading.analysis}
+                  className="rounded-md bg-primary px-3 py-1 text-sm text-white hover:bg-primary/90"
+                >
+                  {loading.analysis ? "Analyzing..." : "Analyze"}
                 </button>
               </div>
+            </div>
+          )}
+
+          {analysisResults && (
+            <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-2 text-sm font-medium text-gray-700">Analysis Results:</h3>
+
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                <div className="rounded-md bg-white p-2 text-center">
+                  <div className="text-xl font-semibold">{analysisResults.accuracy.toFixed(1)}%</div>
+                  <div className="text-xs text-gray-500">Overall Accuracy</div>
+                </div>
+                <div className="rounded-md bg-white p-2 text-center">
+                  <div className="text-xl font-semibold">{analysisResults.tempo.toFixed(1)} BPM</div>
+                  <div className="text-xs text-gray-500">Tempo</div>
+                </div>
+                <div className="rounded-md bg-white p-2 text-center">
+                  <div className="text-xl font-semibold">{analysisResults.rhythmAccuracy.toFixed(1)}%</div>
+                  <div className="text-xs text-gray-500">Rhythm</div>
+                </div>
+                <div className="rounded-md bg-white p-2 text-center">
+                  <div className="text-xl font-semibold">{analysisResults.pitchAccuracy.toFixed(1)}%</div>
+                  <div className="text-xs text-gray-500">Pitch</div>
+                </div>
+              </div>
+
+              <h4 className="mb-1 text-xs font-medium uppercase text-gray-500">Improvement Suggestions:</h4>
+              <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
+                {analysisResults.suggestions.map((suggestion: string, index: number) => (
+                  <li key={index}>{suggestion}</li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
       </div>
 
       <div className="mt-8 mb-8 rounded-lg border bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">Music AI Integration</h2>
+        <h2 className="mb-6 text-xl font-semibold">Mistral 7B Music AI Integration</h2>
         <p className="mb-4 text-gray-600">
-          Our system integrates with a Python-based Streamlit application that provides AI-generated
-          music exercises using MIDI-GPT. This integration allows for:
+          Our system now integrates with the powerful Mistral 7B AI model to provide enhanced music generation and analysis capabilities:
         </p>
         <ul className="mb-6 list-inside list-disc space-y-2 text-gray-600">
           <li>Generating complex music exercises with proper notation</li>
-          <li>Creating educational content based on music theory concepts</li>
+          <li>Understanding and analyzing your MIDI performances</li>
+          <li>Providing personalized suggestions for improvement</li>
+          <li>Creating educational content based on your skill level</li>
           <li>Exporting exercises as both MusicXML and MIDI formats</li>
-          <li>Visualizing musical scores with proper sheet music notation</li>
         </ul>
 
         <div className="flex justify-center">

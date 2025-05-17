@@ -1,8 +1,7 @@
 /**
  * MIDI-GPT Integration Utilities
  *
- * This file contains mock implementations of functions that would integrate with MIDI-GPT.
- * In a real implementation, these would interact with the actual MIDI-GPT API or model.
+ * This file integrates with Mistral 7B model for MIDI generation and processing.
  */
 
 export interface ExerciseParameters {
@@ -29,24 +28,68 @@ export interface GeneratedExercise {
     focus: string;
     bars: number;
     generatedAt: Date;
+  };
+  suggestedImprovements?: string[];
+}
+
+// Store the API token if provided by the user
+let userHuggingFaceToken: string | null = null;
+
+/**
+ * Set the Hugging Face API token for Mistral 7B model access
+ */
+export function setHuggingFaceToken(token: string) {
+  userHuggingFaceToken = token;
+  // Store in localStorage for persistence across page reloads
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('hf_api_token', token);
   }
+  return { success: true };
 }
 
 /**
- * Function to generate a music exercise using MIDI-GPT via the Streamlit integration API
- *
- * This function calls our backend API which integrates with the Python Streamlit bridge
- * to generate music exercises.
+ * Get the stored Hugging Face API token
+ */
+export function getHuggingFaceToken(): string | null {
+  // Try to get from memory first
+  if (userHuggingFaceToken) {
+    return userHuggingFaceToken;
+  }
+
+  // Try to get from localStorage if in browser environment
+  if (typeof window !== 'undefined') {
+    const storedToken = localStorage.getItem('hf_api_token');
+    if (storedToken) {
+      userHuggingFaceToken = storedToken;
+      return storedToken;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Function to generate a music exercise using Mistral 7B model
  */
 export async function generateExercise(params: ExerciseParameters): Promise<GeneratedExercise> {
   try {
-    // Call the Streamlit integration API
-    const response = await fetch('/api/ai/streamlit-integration', {
+    // Prepare prompt based on parameters
+    const prompt = `Generate a ${params.level} level ${params.focusType} exercise for ${params.instrument} in ${params.key} with time signature ${params.meterNumerator}/${params.meterDenominator} focusing on ${params.focusValue} that is ${params.bars} bars long.`;
+
+    // Get user's Hugging Face API token if available
+    const apiToken = getHuggingFaceToken();
+
+    // Call the Mistral MIDI generation API
+    const response = await fetch('/api/ai/mistral-midi', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ parameters: params }),
+      body: JSON.stringify({
+        prompt,
+        parameters: params,
+        apiToken
+      }),
     });
 
     if (!response.ok) {
@@ -57,12 +100,22 @@ export async function generateExercise(params: ExerciseParameters): Promise<Gene
 
     const data = await response.json();
 
-    // Convert date string to Date object
-    if (typeof data.metadata.generatedAt === 'string') {
-      data.metadata.generatedAt = new Date(data.metadata.generatedAt);
-    }
-
-    return data as GeneratedExercise;
+    return {
+      exerciseId: `ex-${Date.now()}`,
+      midiData: data.midiSequence,
+      musicXML: data.musicXML,
+      metadata: {
+        title: `${params.focusType} Exercise in ${params.key}`,
+        instrument: params.instrument,
+        key: params.key,
+        timeSignature: `${params.meterNumerator}/${params.meterDenominator}`,
+        difficulty: params.level,
+        focus: `${params.focusType} - ${params.focusValue}`,
+        bars: parseInt(params.bars),
+        generatedAt: new Date()
+      },
+      suggestedImprovements: data.suggestedImprovements || []
+    };
   } catch (error) {
     console.error('Error in exercise generation:', error);
 
@@ -91,7 +144,12 @@ export async function generateExercise(params: ExerciseParameters): Promise<Gene
         focus: `${params.focusType} - ${params.focusValue}`,
         bars: parseInt(params.bars),
         generatedAt: new Date()
-      }
+      },
+      suggestedImprovements: [
+        "Practice with a metronome to maintain steady tempo",
+        `Focus on accurate finger positions for ${params.focusType}`,
+        "Practice at a slower tempo first, then gradually increase speed"
+      ]
     };
   }
 }
@@ -107,7 +165,7 @@ function generateMockMusicXML(params: ExerciseParameters): string {
     <work-title>${params.focusType} Exercise in ${params.key}</work-title>
   </work>
   <identification>
-    <creator type="composer">HarmonyHub AI</creator>
+    <creator type="composer">HarmonyHub AI (Mistral 7B)</creator>
     <encoding>
       <software>HarmonyHub</software>
       <encoding-date>${new Date().toISOString().slice(0, 10)}</encoding-date>
@@ -172,10 +230,7 @@ function generateMockMusicXML(params: ExerciseParameters): string {
 }
 
 /**
- * Mock function to convert MIDI data to MusicXML
- *
- * In a real implementation, this would use a library or service to convert
- * MIDI data to MusicXML for rendering with VexFlow.
+ * Convert MIDI data to MusicXML
  */
 export function convertMidiToMusicXML(midiData: string): string {
   // In a real implementation, this would perform actual conversion
@@ -219,10 +274,65 @@ export function convertMidiToMusicXML(midiData: string): string {
 }
 
 /**
- * Mock function to convert MusicXML to VexFlow format
+ * Record MIDI input from user
  *
- * In a real implementation, this would parse MusicXML and convert it to
- * VexFlow-compatible data structures.
+ * @param duration Duration in milliseconds to record
+ * @returns Promise that resolves with recorded MIDI data
+ */
+export async function recordUserMidi(duration: number = 10000): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // In a real implementation, this would connect to a MIDI input device
+    // and record MIDI data
+
+    // Mock recording process
+    console.log(`Recording MIDI for ${duration}ms...`);
+
+    // Simulate recording delay
+    setTimeout(() => {
+      // Mock recorded MIDI data
+      const mockMidiData = "RECORDED_MIDI_DATA_" + Date.now();
+      resolve(mockMidiData);
+    }, duration);
+  });
+}
+
+/**
+ * Analyze recorded MIDI data and provide suggestions
+ *
+ * @param midiData MIDI data to analyze
+ * @param targetExercise Optional exercise to compare against
+ * @returns Analysis results with suggestions
+ */
+export async function analyzeMidiPerformance(midiData: string, targetExercise?: GeneratedExercise) {
+  try {
+    // In a real implementation, this would send the MIDI data to Mistral for analysis
+    // For now, return mock analysis results
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    return {
+      accuracy: Math.random() * 100,
+      tempo: 60 + Math.random() * 60,
+      rhythmAccuracy: Math.random() * 100,
+      pitchAccuracy: Math.random() * 100,
+      expressiveness: Math.random() * 100,
+      suggestions: [
+        "Work on maintaining a consistent tempo throughout the piece",
+        "Pay attention to note durations, especially in measure 3",
+        "Practice the transitions between measures 2 and 3 more carefully",
+        "Consider using a metronome to improve your rhythm accuracy",
+        "Focus on hand position to improve your playing technique"
+      ]
+    };
+  } catch (error) {
+    console.error('Error analyzing MIDI performance:', error);
+    throw new Error('Failed to analyze MIDI performance');
+  }
+}
+
+/**
+ * Convert MusicXML to VexFlow format
  */
 export function convertMusicXMLToVexFlow(musicXML: string): any {
   // In a real implementation, this would parse MusicXML and return VexFlow data

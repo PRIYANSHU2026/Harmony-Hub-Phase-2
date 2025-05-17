@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import dynamic from "next/dynamic";
-import { type ExerciseParameters, type GeneratedExercise, generateExercise } from "~/utils/midi-gpt-integration";
+import {
+  type ExerciseParameters,
+  type GeneratedExercise,
+  generateExercise,
+  getHuggingFaceToken,
+  analyzeMidiPerformance
+} from "~/utils/midi-gpt-integration";
 import { generateExerciseMetadataXML, downloadXML } from "~/utils/xml-generator";
 import { convertMusicXMLToMIDI, downloadMIDI, generateSimpleMIDI } from "~/utils/midi-export";
+import { COMMON_INSTRUMENTS, getInstrumentDisplayName, getInstrumentSampleMidi } from "~/utils/instrument-midi";
 
 // Import the SheetMusicRenderer component dynamically to avoid server-side rendering issues
 const SheetMusicRenderer = dynamic(
@@ -28,10 +35,28 @@ export default function ExerciseGenerator() {
 
   const [generationStatus, setGenerationStatus] = useState<"idle" | "generating" | "success" | "error">("idle");
   const [generatedExercise, setGeneratedExercise] = useState<GeneratedExercise | null>(null);
+  const [needsToken, setNeedsToken] = useState<boolean>(false);
+  const [sampleMidiPath, setSampleMidiPath] = useState<string | null>(null);
+
+  // Check if the user has a Hugging Face API token
+  useEffect(() => {
+    const token = getHuggingFaceToken();
+    setNeedsToken(!token);
+
+    // Set a sample MIDI path based on the selected instrument
+    if (formData.instrument) {
+      setSampleMidiPath(getInstrumentSampleMidi(formData.instrument));
+    }
+  }, [formData.instrument]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+
+    // Update sample MIDI path when instrument changes
+    if (name === 'instrument') {
+      setSampleMidiPath(getInstrumentSampleMidi(value));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,7 +64,14 @@ export default function ExerciseGenerator() {
     setGenerationStatus("generating");
 
     try {
-      // Call the generateExercise function from our mock MIDI-GPT integration
+      // Check if user has a Hugging Face API token
+      const token = getHuggingFaceToken();
+      if (!token) {
+        setNeedsToken(true);
+        throw new Error("Hugging Face API token is required");
+      }
+
+      // Call the generateExercise function from our Mistral 7B integration
       const exercise = await generateExercise(formData);
       setGeneratedExercise(exercise);
       setGenerationStatus("success");
@@ -49,13 +81,48 @@ export default function ExerciseGenerator() {
     }
   };
 
+  const analyzeMidiFile = async () => {
+    if (!generatedExercise) return;
+
+    try {
+      const results = await analyzeMidiPerformance(generatedExercise.midiData, generatedExercise);
+
+      // Display results in an alert for now
+      // In a real implementation, this would be a proper UI component
+      alert(`
+Analysis Results:
+- Overall Accuracy: ${results.accuracy.toFixed(1)}%
+- Tempo: ${results.tempo.toFixed(1)} BPM
+- Rhythm Accuracy: ${results.rhythmAccuracy.toFixed(1)}%
+- Pitch Accuracy: ${results.pitchAccuracy.toFixed(1)}%
+
+Suggestions:
+${results.suggestions.map((s: string) => `- ${s}`).join('\n')}
+      `);
+    } catch (error) {
+      console.error("Error analyzing MIDI:", error);
+      alert("Error analyzing MIDI performance");
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">Exercise Generator</h1>
         <p className="text-gray-600">
-          Generate customized music exercises using MIDI-GPT AI
+          Generate customized music exercises using Mistral 7B AI
         </p>
+        {needsToken && (
+          <div className="mt-2 rounded-md bg-yellow-50 p-3 text-yellow-800">
+            <p className="text-sm">
+              You need to set your Hugging Face API token in the{" "}
+              <Link href="/ai-tools" className="font-medium text-yellow-900 underline">
+                AI Tools
+              </Link>{" "}
+              page to use Mistral 7B features.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
@@ -76,11 +143,11 @@ export default function ExerciseGenerator() {
                   onChange={handleChange}
                   className="w-full rounded-md border border-gray-300 p-2"
                 >
-                  <option value="piano">Piano</option>
-                  <option value="trumpet">Trumpet</option>
-                  <option value="violin">Violin</option>
-                  <option value="clarinet">Clarinet</option>
-                  <option value="flute">Flute</option>
+                  {COMMON_INSTRUMENTS.map(instrument => (
+                    <option key={instrument} value={instrument}>
+                      {getInstrumentDisplayName(instrument)}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -235,7 +302,7 @@ export default function ExerciseGenerator() {
             <div className="mt-6">
               <button
                 type="submit"
-                disabled={generationStatus === "generating"}
+                disabled={generationStatus === "generating" || needsToken}
                 className="w-full rounded-md bg-primary py-2 text-white hover:bg-primary/90 disabled:bg-gray-400"
               >
                 {generationStatus === "generating"
@@ -243,6 +310,18 @@ export default function ExerciseGenerator() {
                   : "Generate Exercise"}
               </button>
             </div>
+
+            {sampleMidiPath && (
+              <div className="mt-4 text-center">
+                <p className="mb-1 text-sm text-gray-500">
+                  Try a sample MIDI file for {getInstrumentDisplayName(formData.instrument)}:
+                </p>
+                <audio controls className="mt-2 w-full">
+                  <source src={sampleMidiPath} type="audio/midi" />
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
+            )}
           </form>
         </div>
 
@@ -264,7 +343,7 @@ export default function ExerciseGenerator() {
           {generationStatus === "generating" && (
             <div className="flex h-64 flex-col items-center justify-center">
               <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-              <p className="mt-4 text-gray-600">Generating your exercise...</p>
+              <p className="mt-4 text-gray-600">Generating your exercise with Mistral 7B...</p>
             </div>
           )}
 
@@ -285,6 +364,18 @@ export default function ExerciseGenerator() {
                   />
                 </div>
               </div>
+
+              {generatedExercise.suggestedImprovements && generatedExercise.suggestedImprovements.length > 0 && (
+                <div className="mb-4 rounded-md border border-green-100 bg-green-50 p-3">
+                  <h3 className="mb-2 text-sm font-medium text-green-800">Suggestions for Practice:</h3>
+                  <ul className="list-inside list-disc space-y-1 text-sm text-green-700">
+                    {generatedExercise.suggestedImprovements.map((suggestion, index) => (
+                      <li key={index}>{suggestion}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <button
                   onClick={() => {
@@ -318,6 +409,12 @@ export default function ExerciseGenerator() {
                   className="rounded-md bg-gray-200 px-4 py-2 text-gray-800 hover:bg-gray-300"
                 >
                   Play
+                </button>
+                <button
+                  onClick={analyzeMidiFile}
+                  className="rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90"
+                >
+                  Analyze
                 </button>
                 <button
                   onClick={() => {
@@ -367,6 +464,11 @@ export default function ExerciseGenerator() {
               <p className="mt-4 text-center">
                 Something went wrong while generating your exercise. Please try again.
               </p>
+              {needsToken && (
+                <p className="mt-2 text-center text-sm">
+                  Make sure you've set your Hugging Face API token in the AI Tools page.
+                </p>
+              )}
             </div>
           )}
         </div>

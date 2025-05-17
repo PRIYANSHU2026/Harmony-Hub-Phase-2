@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.7.2",
+    "@huggingface/inference": "^3.13.1",
     "@magenta/music": "^1.23.1",
     "@t3-oss/env-nextjs": "^0.12.0",
     "@tanstack/react-query": "^5.69.0",
@@ -33,6 +34,7 @@
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
     "superjson": "^2.2.1",
+    "transformers": "^3.1.0",
     "vexflow": "^5.0.0",
     "xmldom": "^0.6.0",
     "zod": "^3.24.2"
