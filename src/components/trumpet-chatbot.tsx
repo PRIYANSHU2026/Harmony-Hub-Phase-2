@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { getHuggingFaceToken } from "~/utils/midi-gpt-integration";
+import { getHuggingFaceToken, isTokenValidated, markTokenValidated } from "~/utils/midi-gpt-integration";
+import AuthModal from "~/components/auth-modal";
 
 interface Message {
   id: string;
@@ -32,10 +33,15 @@ export default function TrumpetChatbot({
   const [needsToken, setNeedsToken] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Modal state
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [modalMessage, setModalMessage] = useState<string>("");
+  const [modalType, setModalType] = useState<"success" | "error" | "info">("info");
+
   // Check if the user has a Hugging Face API token
   useEffect(() => {
     const token = getHuggingFaceToken();
-    setNeedsToken(!token);
+    setNeedsToken(!token || !isTokenValidated());
   }, []);
 
   // Scroll to the bottom of the chat when messages change
@@ -54,6 +60,7 @@ export default function TrumpetChatbot({
     const token = getHuggingFaceToken();
     if (!token && showTokenWarning) {
       setNeedsToken(true);
+      showAuthModal("Please add your Hugging Face API token in the AI Tools page to use the chatbot's full capabilities.", "info");
       return;
     }
 
@@ -88,6 +95,12 @@ export default function TrumpetChatbot({
 
       const data = await response.json();
 
+      // If we got a successful response, mark the token as validated
+      if (token && data.response) {
+        markTokenValidated(true);
+        setNeedsToken(false);
+      }
+
       // Add assistant message to chat
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
@@ -100,18 +113,32 @@ export default function TrumpetChatbot({
     } catch (error) {
       console.error("Error in chatbot:", error);
 
-      // Add error message
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: "assistant",
-        content: "I'm sorry, I encountered an error while processing your request. Please try again later.",
-        timestamp: new Date(),
-      };
+      // Handle authentication errors
+      if (error instanceof Error && error.message.includes("Unauthorized")) {
+        setNeedsToken(true);
+        markTokenValidated(false);
+        showAuthModal("Your Hugging Face API token appears to be invalid. Please update it in the AI Tools page.", "error");
+      } else {
+        // Add general error message
+        const errorMessage: Message = {
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: "I'm sorry, I encountered an error while processing your request. Please try again later.",
+          timestamp: new Date(),
+        };
 
-      setMessages(prev => [...prev, errorMessage]);
+        setMessages(prev => [...prev, errorMessage]);
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Show authentication modal with message
+  const showAuthModal = (message: string, type: "success" | "error" | "info") => {
+    setModalMessage(message);
+    setModalType(type);
+    setShowModal(true);
   };
 
   const formatTimestamp = (date: Date): string => {
@@ -119,83 +146,93 @@ export default function TrumpetChatbot({
   };
 
   return (
-    <div className="trumpet-chatbot flex h-[500px] flex-col rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center border-b border-gray-200 bg-primary p-3 text-white">
-        <div className="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary">
-          🎺
-        </div>
-        <h3 className="text-lg font-semibold">Trumpet Practice Assistant</h3>
-      </div>
-
-      {needsToken && showTokenWarning && (
-        <div className="m-3 rounded-md bg-yellow-50 p-3 text-yellow-800">
-          <p className="text-sm">
-            You need to set your Hugging Face API token in the AI Tools page to use the chatbot's full capabilities.
-            Without a token, the chatbot will operate with limited functionality.
-          </p>
-        </div>
-      )}
-
-      <div className="flex-1 overflow-y-auto p-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`mb-4 max-w-3/4 rounded-lg p-3 ${
-              message.role === "user"
-                ? "ml-auto bg-primary text-white"
-                : "mr-auto bg-gray-100 text-gray-800"
-            }`}
-          >
-            <div className="mb-1 text-xs opacity-70">
-              {message.role === "user" ? "You" : "Trumpet Assistant"} • {formatTimestamp(message.timestamp)}
-            </div>
-            <div className="whitespace-pre-wrap">{message.content}</div>
+    <>
+      <div className="trumpet-chatbot flex h-[500px] flex-col rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center border-b border-gray-200 bg-primary p-3 text-white">
+          <div className="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary">
+            🎺
           </div>
-        ))}
-        <div ref={messagesEndRef} />
+          <h3 className="text-lg font-semibold">Trumpet Practice Assistant</h3>
+        </div>
+
+        {needsToken && showTokenWarning && (
+          <div className="m-3 rounded-md bg-yellow-50 p-3 text-yellow-800">
+            <p className="text-sm">
+              You need to set your Hugging Face API token in the AI Tools page to use the chatbot's full capabilities.
+              Without a token, the chatbot will operate with limited functionality.
+            </p>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto p-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`mb-4 max-w-3/4 rounded-lg p-3 ${
+                message.role === "user"
+                  ? "ml-auto bg-primary text-white"
+                  : "mr-auto bg-gray-100 text-gray-800"
+              }`}
+            >
+              <div className="mb-1 text-xs opacity-70">
+                {message.role === "user" ? "You" : "Trumpet Assistant"} • {formatTimestamp(message.timestamp)}
+              </div>
+              <div className="whitespace-pre-wrap">{message.content}</div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <form onSubmit={handleSubmit} className="border-t border-gray-200 p-3">
+          <div className="flex items-center">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about trumpet technique, practice tips, or exercises..."
+              className="flex-1 rounded-l-md border border-gray-300 p-2 focus:border-primary focus:outline-none"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="rounded-r-md bg-primary px-4 py-2 text-white hover:bg-primary/90 disabled:bg-gray-400"
+            >
+              {isLoading ? (
+                <span className="flex items-center">
+                  <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Thinking...
+                </span>
+              ) : (
+                "Send"
+              )}
+            </button>
+          </div>
+        </form>
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-gray-200 p-3">
-        <div className="flex items-center">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about trumpet technique, practice tips, or exercises..."
-            className="flex-1 rounded-l-md border border-gray-300 p-2 focus:border-primary focus:outline-none"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="rounded-r-md bg-primary px-4 py-2 text-white hover:bg-primary/90 disabled:bg-gray-400"
-          >
-            {isLoading ? (
-              <span className="flex items-center">
-                <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Thinking...
-              </span>
-            ) : (
-              "Send"
-            )}
-          </button>
-        </div>
-      </form>
-    </div>
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={showModal}
+        message={modalMessage}
+        type={modalType}
+        onClose={() => setShowModal(false)}
+      />
+    </>
   );
 }

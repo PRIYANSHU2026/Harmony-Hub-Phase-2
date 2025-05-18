@@ -1,32 +1,86 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getHuggingFaceToken, setHuggingFaceToken } from "~/utils/midi-gpt-integration";
+import { getHuggingFaceToken, setHuggingFaceToken, validateHuggingFaceToken, isTokenValidated, markTokenValidated } from "~/utils/midi-gpt-integration";
 import TrumpetChatbot from "~/components/trumpet-chatbot";
 import TrumpetSoundPlayer from "~/components/trumpet-sound-player";
+import AuthModal from "~/components/auth-modal";
+import AdaptiveLearning from "~/components/adaptive-learning";
 
 export default function AITools() {
   const [token, setToken] = useState<string>("");
-  const [tokenStatus, setTokenStatus] = useState<"none" | "valid" | "invalid">("none");
+  const [tokenStatus, setTokenStatus] = useState<"none" | "valid" | "invalid" | "validating">("none");
   const [selectedKey, setSelectedKey] = useState<string>("C");
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+
+  // Modal state
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [modalMessage, setModalMessage] = useState<string>("");
+  const [modalType, setModalType] = useState<"success" | "error" | "info">("info");
 
   // Load token from localStorage on component mount
   useEffect(() => {
     const savedToken = getHuggingFaceToken();
     if (savedToken) {
       setToken(savedToken);
-      setTokenStatus("valid");
+
+      // If token exists but hasn't been validated in this session
+      if (!isTokenValidated()) {
+        validateSavedToken(savedToken);
+      } else {
+        setTokenStatus("valid");
+      }
     }
   }, []);
 
-  const handleSaveToken = () => {
-    if (token.trim()) {
-      setHuggingFaceToken(token.trim());
-      setTokenStatus("valid");
-    } else {
+  // Validate a saved token silently in the background
+  const validateSavedToken = async (savedToken: string) => {
+    try {
+      const result = await validateHuggingFaceToken(savedToken);
+      if (result.valid) {
+        setTokenStatus("valid");
+      } else {
+        // Don't show modal for silent validation of saved token
+        setTokenStatus("invalid");
+      }
+    } catch (error) {
+      console.error("Error validating saved token:", error);
       setTokenStatus("invalid");
     }
+  };
+
+  const handleSaveToken = async () => {
+    if (!token.trim()) {
+      setTokenStatus("invalid");
+      showAuthModal("Please enter a valid token", "error");
+      return;
+    }
+
+    setTokenStatus("validating");
+    try {
+      const result = await validateHuggingFaceToken(token.trim());
+
+      if (result.valid) {
+        setHuggingFaceToken(token.trim());
+        setTokenStatus("valid");
+        markTokenValidated(true);
+        showAuthModal(result.message, "success");
+      } else {
+        setTokenStatus("invalid");
+        showAuthModal(result.message, "error");
+      }
+    } catch (error) {
+      console.error("Error validating token:", error);
+      setTokenStatus("invalid");
+      showAuthModal("Error connecting to Hugging Face API", "error");
+    }
+  };
+
+  // Show authentication modal with message
+  const showAuthModal = (message: string, type: "success" | "error" | "info") => {
+    setModalMessage(message);
+    setModalType(type);
+    setShowModal(true);
   };
 
   return (
@@ -60,13 +114,36 @@ export default function AITools() {
               </div>
               <button
                 onClick={handleSaveToken}
-                className="w-full rounded-md bg-primary py-2 text-white hover:bg-primary/90"
+                disabled={tokenStatus === "validating"}
+                className="w-full rounded-md bg-primary py-2 text-white hover:bg-primary/90 disabled:bg-gray-400"
               >
-                Save Token
+                {tokenStatus === "validating" ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Validating...
+                  </span>
+                ) : (
+                  "Save & Validate Token"
+                )}
               </button>
               {tokenStatus === "valid" && (
                 <p className="mt-2 text-sm text-green-600">
-                  Token saved successfully. You can now use all Mistral 7B features.
+                  Token validated successfully. You can now use all Mistral 7B features.
                 </p>
               )}
               {tokenStatus === "invalid" && (
@@ -174,6 +251,17 @@ export default function AITools() {
             />
           </div>
 
+          <div className="mb-8 rounded-lg border bg-white p-6 shadow-sm">
+            <h2 className="mb-6 text-xl font-semibold">Adaptive Learning System</h2>
+            <p className="mb-4 text-gray-600">
+              Our AI-powered adaptive learning system creates personalized practice sessions
+              that adjust to your skill level and progress. Get real-time feedback and
+              tailored exercises to accelerate your trumpet learning.
+            </p>
+
+            <AdaptiveLearning instrument="trumpet" sessionLength={15} />
+          </div>
+
           <div className="rounded-lg border bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-xl font-semibold">Practice Suggestions</h2>
 
@@ -221,6 +309,14 @@ export default function AITools() {
           </div>
         </div>
       </div>
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={showModal}
+        message={modalMessage}
+        type={modalType}
+        onClose={() => setShowModal(false)}
+      />
     </div>
   );
 }

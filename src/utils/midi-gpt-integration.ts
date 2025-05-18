@@ -34,12 +34,16 @@ export interface GeneratedExercise {
 
 // Store the API token if provided by the user
 let userHuggingFaceToken: string | null = null;
+// Track token validation state
+let tokenValidated: boolean = false;
 
 /**
  * Set the Hugging Face API token for Mistral 7B model access
  */
 export function setHuggingFaceToken(token: string) {
   userHuggingFaceToken = token;
+  tokenValidated = false; // Reset validation state when token changes
+
   // Store in localStorage for persistence across page reloads
   if (typeof window !== 'undefined') {
     localStorage.setItem('hf_api_token', token);
@@ -66,6 +70,53 @@ export function getHuggingFaceToken(): string | null {
   }
 
   return null;
+}
+
+/**
+ * Validate the user's Hugging Face API token by making a test request
+ * @returns Promise that resolves to true if token is valid
+ */
+export async function validateHuggingFaceToken(token: string): Promise<{valid: boolean, message: string}> {
+  if (!token) {
+    return { valid: false, message: "No API token provided" };
+  }
+
+  try {
+    // Make a minimal test request to Hugging Face API
+    const response = await fetch('/api/ai/mistral-chat/validate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ apiToken: token }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.valid) {
+      tokenValidated = true;
+      return { valid: true, message: "Hugging Face connection established successfully!" };
+    } else {
+      return { valid: false, message: data.message || "Invalid Hugging Face API token" };
+    }
+  } catch (error) {
+    console.error('Error validating Hugging Face token:', error);
+    return { valid: false, message: "Error connecting to Hugging Face API" };
+  }
+}
+
+/**
+ * Check if the token has been validated
+ */
+export function isTokenValidated(): boolean {
+  return tokenValidated;
+}
+
+/**
+ * Mark the token as validated after a successful operation
+ */
+export function markTokenValidated(isValid: boolean = true): void {
+  tokenValidated = isValid;
 }
 
 /**
