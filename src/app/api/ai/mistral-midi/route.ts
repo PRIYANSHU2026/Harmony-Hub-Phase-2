@@ -71,34 +71,39 @@ export async function POST(req: Request) {
       // Attempt to call the Mistral model via Hugging Face inference API
       // This is commented out as it would be used in a real implementation
       /*
-      const response = await hf.textGeneration({
+      const response = await hf.chatCompletion({
         model: "mistralai/Mistral-7B-Instruct-v0.3",
-        inputs: `<s>[INST] ${DEFAULT_SYSTEM_PROMPT}
+        messages: [
+          {
+            role: "system",
+            content: DEFAULT_SYSTEM_PROMPT
+          },
+          {
+            role: "user",
+            content: `Parameters:
+            - Instrument: ${parameters?.instrument || 'piano'}
+            - Difficulty: ${parameters?.level || 'beginner'}
+            - Key: ${parameters?.key || 'C'}
+            - Time Signature: ${parameters?.meterNumerator || '4'}/${parameters?.meterDenominator || '4'}
+            - Focus: ${parameters?.focusType || 'scales'} - ${parameters?.focusValue || 'major'}
+            - Number of bars: ${parameters?.bars || '16'}
 
-        Parameters:
-        - Instrument: ${parameters?.instrument || 'piano'}
-        - Difficulty: ${parameters?.level || 'beginner'}
-        - Key: ${parameters?.key || 'C'}
-        - Time Signature: ${parameters?.meterNumerator || '4'}/${parameters?.meterDenominator || '4'}
-        - Focus: ${parameters?.focusType || 'scales'} - ${parameters?.focusValue || 'major'}
-        - Number of bars: ${parameters?.bars || '16'}
+            User Prompt: ${prompt}
 
-        User Prompt: ${prompt}
-
-        Generate a musical exercise based on these parameters. Provide the result in a format that can be converted to MIDI and MusicXML. [/INST]</s>`,
-        parameters: {
-          max_new_tokens: 2048,
-          temperature: 0.7,
-          top_k: 50,
-          top_p: 0.95
-        }
+            Generate a musical exercise based on these parameters. Provide the result in a format that can be converted to MIDI and MusicXML.`
+          }
+        ],
+        temperature: 0.7,
+        top_k: 50,
+        top_p: 0.95,
+        max_tokens: 2048
       });
 
       // Parse the response to extract MIDI data
       // This would require proper parsing based on the model's output format
-      generatedMidi = parseResponseToMidi(response.generated_text);
+      generatedMidi = parseResponseToMidi(response.content);
       generatedMusicXML = convertMidiToMusicXML(generatedMidi);
-      suggestedImprovements = extractSuggestions(response.generated_text);
+      suggestedImprovements = extractSuggestions(response.content);
       */
 
       // Mock response for development purposes

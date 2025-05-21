@@ -22,9 +22,9 @@ export async function POST(req: Request) {
     try {
       // Make a minimal test request to validate the token
       // Using a lightweight model call to check if the token is valid
-      const response = await hf.textGeneration({
+      const response = await hf.chatCompletion({
         model: "mistralai/Mistral-7B-Instruct-v0.3",
-        inputs: [
+        messages: [
           {
             role: "system",
             content: "You are a helpful assistant."
@@ -34,10 +34,8 @@ export async function POST(req: Request) {
             content: "Hello"
           }
         ],
-        parameters: {
-          max_new_tokens: 5, // Minimal tokens for quick validation
-          temperature: 0.7
-        }
+        temperature: 0.7,
+        max_tokens: 5 // Minimal tokens for quick validation
       });
 
       // If we get this far without an error, the token is valid

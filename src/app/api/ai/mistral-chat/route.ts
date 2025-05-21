@@ -74,22 +74,20 @@ export async function POST(req: Request) {
 
     try {
       // Call the Mistral model via Hugging Face inference API
-      const response = await hf.textGeneration({
+      const response = await hf.chatCompletion({
         model: "mistralai/Mistral-7B-Instruct-v0.3",
-        inputs: formattedMessages.map(msg => ({
+        messages: formattedMessages.map(msg => ({
           role: msg.role,
           content: msg.content
         })),
-        parameters: {
-          max_new_tokens: 1024,
-          temperature: 0.7,
-          top_k: 50,
-          top_p: 0.95
-        }
+        temperature: 0.7,
+        top_k: 50,
+        top_p: 0.95,
+        max_tokens: 1024
       });
 
       return NextResponse.json({
-        response: response.generated_text || "I'm sorry, I couldn't generate a response at this time."
+        response: response.content || "I'm sorry, I couldn't generate a response at this time."
       });
     } catch (modelError) {
       console.error("Error calling Mistral model:", modelError);
