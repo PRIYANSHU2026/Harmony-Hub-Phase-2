@@ -1,6 +1,6 @@
 # HarmonyHub - AI-Powered Music Education Platform
 
-HarmonyHub is an AI-powered personalized music education platform integrating MIDI-GPT for dynamic exercise generation. The system leverages various AI models, including Shuka-1 for text generation and Dia-1.6B for text-to-speech capabilities.
+HarmonyHub is an AI-powered personalized music education platform integrating MIDI-GPT for dynamic exercise generation. The system leverages various AI models, including Mistral 7b for text generation a capabilities.
 
 ## Overview
 
@@ -22,8 +22,7 @@ HarmonyHub is designed to enhance music education by leveraging generative AI to
 - **Styling**: Tailwind CSS 4
 - **API**: tRPC for type-safe API communication
 - **AI Models**:
-  - Shuka-1 for text generation
-  - Dia-1.6B for text-to-speech
+  - Mistral 7b 
   - MIDI-GPT for music generation (via Python bridge)
 - **Music Rendering**: VexFlow for sheet music visualization
 - **Python Integration**: Streamlit for music generation UI and bridge script
