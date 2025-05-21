@@ -12,8 +12,6 @@ HarmonyHub is designed to enhance music education by leveraging generative AI to
 - **Interactive Sheet Music**: View exercises as professionally rendered sheet music with proper MusicXML parsing.
 - **MIDI Export**: Download exercises as MIDI files for playback in any music software.
 - **XML Generation**: Export exercise data in standardized XML format with comprehensive schema.
-- **AI Text Generation**: Generate text content using the Shuka-1 model.
-- **Text-to-Speech**: Convert text to speech using the Dia-1.6B model.
 - **Streamlit Integration**: Bridge between Next.js frontend and Python-based AI generation.
 
 ## Tech Stack
